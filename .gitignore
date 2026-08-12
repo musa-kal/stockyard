@@ -1,0 +1,39 @@
+# .NET
+bin/
+obj/
+.vs/
+*.user
+*.suo
+TestResults/
+*.trx
+
+# Environment
+.env
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# dbt
+pipeline/dbt/target/
+pipeline/dbt/logs/
+pipeline/dbt/sample_data/
+pipeline/dbt/dbt_packages/
+*.duckdb
+*.duckdb.wal
+
+# Terraform
+infra/terraform/.terraform/
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!example.tfvars
+tfplan
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
