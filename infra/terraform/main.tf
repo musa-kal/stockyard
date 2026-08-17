@@ -23,3 +23,7 @@ module "network" {
   availability_zones = local.azs
   cluster_name       = local.cluster_name
 }
+
+module "messaging" {
+  source = "./modules/messaging"
+}
