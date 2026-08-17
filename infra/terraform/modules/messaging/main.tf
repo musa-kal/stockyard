@@ -16,3 +16,15 @@ resource "aws_sqs_queue" "events" {
     maxReceiveCount     = var.max_receive_count
   })
 }
+
+# Only the events queue may use the DLQ as its dead-letter target. Declared as a
+# separate resource because the DLQ cannot reference the events queue ARN
+# without a cycle.
+resource "aws_sqs_queue_redrive_allow_policy" "dlq" {
+  queue_url = aws_sqs_queue.dlq.id
+
+  redrive_allow_policy = jsonencode({
+    redrivePermission = "byQueue"
+    sourceQueueArns   = [aws_sqs_queue.events.arn]
+  })
+}
