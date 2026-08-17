@@ -21,3 +21,15 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "vpc_cidr" {
+  description = "CIDR block for the VPC. A /16 leaves room for /20 subnets in up to eight zones."
+  type        = string
+  default     = "10.40.0.0/16"
+}
+
+variable "availability_zone_count" {
+  description = "How many availability zones to spread subnets over. EKS needs at least two."
+  type        = number
+  default     = 2
+}
