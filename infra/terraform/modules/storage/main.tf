@@ -59,3 +59,24 @@ resource "aws_s3_bucket_policy" "exports" {
 
   depends_on = [aws_s3_bucket_public_access_block.exports]
 }
+
+resource "aws_s3_bucket_lifecycle_configuration" "exports" {
+  bucket = aws_s3_bucket.exports.id
+
+  rule {
+    id     = "expire-exports"
+    status = "Enabled"
+
+    filter {
+      prefix = "${var.export_prefix}/"
+    }
+
+    expiration {
+      days = var.retention_days
+    }
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 1
+    }
+  }
+}

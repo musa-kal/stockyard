@@ -31,5 +31,6 @@ module "messaging" {
 module "storage" {
   source = "./modules/storage"
 
-  bucket_name = "${var.project}-exports-${data.aws_caller_identity.current.account_id}"
+  bucket_name    = "${var.project}-exports-${data.aws_caller_identity.current.account_id}"
+  retention_days = var.export_retention_days
 }

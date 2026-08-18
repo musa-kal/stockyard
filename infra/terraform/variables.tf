@@ -33,3 +33,14 @@ variable "availability_zone_count" {
   type        = number
   default     = 2
 }
+
+variable "export_retention_days" {
+  description = "Days the Parquet exports are kept in S3 before they expire. dbt only needs the days it has not loaded yet."
+  type        = number
+  default     = 90
+
+  validation {
+    condition     = var.export_retention_days >= 7
+    error_message = "Keep at least a week of exports so a failed dbt run can catch up."
+  }
+}

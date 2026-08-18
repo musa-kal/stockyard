@@ -14,3 +14,9 @@ variable "force_destroy" {
   type        = bool
   default     = false
 }
+
+variable "retention_days" {
+  description = "Days an export object is kept before S3 expires it."
+  type        = number
+  default     = 90
+}
