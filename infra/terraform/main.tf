@@ -45,3 +45,12 @@ module "registry" {
     "stockyard-exporter",
   ]
 }
+
+module "eks" {
+  source = "./modules/eks"
+
+  cluster_name                 = local.cluster_name
+  cluster_version              = var.cluster_version
+  subnet_ids                   = module.network.private_subnet_ids
+  endpoint_public_access_cidrs = var.cluster_endpoint_public_access_cidrs
+}

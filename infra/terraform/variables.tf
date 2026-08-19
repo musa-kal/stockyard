@@ -44,3 +44,15 @@ variable "export_retention_days" {
     error_message = "Keep at least a week of exports so a failed dbt run can catch up."
   }
 }
+
+variable "cluster_version" {
+  description = "Kubernetes minor version for EKS, for example 1.34. Upgrades go one minor version at a time."
+  type        = string
+  default     = "1.34"
+}
+
+variable "cluster_endpoint_public_access_cidrs" {
+  description = "CIDR blocks allowed to call the public EKS API endpoint. Narrow this to your own address and the pipeline agents where you can."
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+}
