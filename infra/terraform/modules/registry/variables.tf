@@ -8,3 +8,9 @@ variable "force_delete" {
   type        = bool
   default     = false
 }
+
+variable "keep_images" {
+  description = "Tagged images kept per repository; older ones are expired by the lifecycle policy."
+  type        = number
+  default     = 20
+}
