@@ -56,3 +56,27 @@ variable "cluster_endpoint_public_access_cidrs" {
   type        = list(string)
   default     = ["0.0.0.0/0"]
 }
+
+variable "node_instance_types" {
+  description = "Instance types for the managed node group. Two t3.medium nodes fit the four services, the migrate job, and the system add-ons."
+  type        = list(string)
+  default     = ["t3.medium"]
+}
+
+variable "node_min_size" {
+  description = "Minimum number of worker nodes."
+  type        = number
+  default     = 2
+}
+
+variable "node_desired_size" {
+  description = "Worker nodes at creation time."
+  type        = number
+  default     = 2
+}
+
+variable "node_max_size" {
+  description = "Maximum number of worker nodes."
+  type        = number
+  default     = 4
+}

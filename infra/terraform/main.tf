@@ -53,4 +53,9 @@ module "eks" {
   cluster_version              = var.cluster_version
   subnet_ids                   = module.network.private_subnet_ids
   endpoint_public_access_cidrs = var.cluster_endpoint_public_access_cidrs
+
+  node_instance_types = var.node_instance_types
+  node_min_size       = var.node_min_size
+  node_desired_size   = var.node_desired_size
+  node_max_size       = var.node_max_size
 }
