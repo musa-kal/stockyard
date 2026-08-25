@@ -13,8 +13,8 @@ variable "subnet_ids" {
   type        = list(string)
 }
 
-variable "allowed_cidr_blocks" {
-  description = "CIDR blocks allowed to connect on 1433."
+variable "allowed_security_group_ids" {
+  description = "Security groups allowed to connect on 1433, normally the EKS cluster security group the nodes use."
   type        = list(string)
 }
 

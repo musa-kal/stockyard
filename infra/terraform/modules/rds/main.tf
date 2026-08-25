@@ -10,14 +10,14 @@ resource "aws_security_group" "this" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "sql" {
-  for_each = toset(var.allowed_cidr_blocks)
+  for_each = toset(var.allowed_security_group_ids)
 
-  security_group_id = aws_security_group.this.id
-  description       = "SQL Server from inside the VPC"
-  ip_protocol       = "tcp"
-  from_port         = 1433
-  to_port           = 1433
-  cidr_ipv4         = each.value
+  security_group_id            = aws_security_group.this.id
+  description                  = "SQL Server from the EKS nodes"
+  ip_protocol                  = "tcp"
+  from_port                    = 1433
+  to_port                      = 1433
+  referenced_security_group_id = each.value
 }
 
 resource "aws_db_instance" "this" {
