@@ -80,3 +80,39 @@ variable "node_max_size" {
   type        = number
   default     = 4
 }
+
+variable "db_instance_class" {
+  description = "RDS instance class for SQL Server Express. db.t3.small (2 GiB) is the smallest that holds the working set comfortably."
+  type        = string
+  default     = "db.t3.small"
+}
+
+variable "db_engine_version" {
+  description = "SQL Server engine version prefix. 16.00 selects SQL Server 2022."
+  type        = string
+  default     = "16.00"
+}
+
+variable "db_allocated_storage" {
+  description = "Initial gp3 storage in GiB."
+  type        = number
+  default     = 20
+}
+
+variable "db_max_allocated_storage" {
+  description = "Upper bound for RDS storage autoscaling in GiB. Express caps each database at 10 GB regardless."
+  type        = number
+  default     = 50
+}
+
+variable "db_backup_retention_days" {
+  description = "Days of automated backups (point in time restore window)."
+  type        = number
+  default     = 7
+}
+
+variable "db_deletion_protection" {
+  description = "Protect the instance from deletion. Turn off deliberately before a teardown."
+  type        = bool
+  default     = true
+}
