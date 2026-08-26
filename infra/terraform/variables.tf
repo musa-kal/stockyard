@@ -116,3 +116,14 @@ variable "db_deletion_protection" {
   type        = bool
   default     = true
 }
+
+variable "secret_recovery_window_days" {
+  description = "Days a deleted secret can still be restored. 0 deletes immediately, which is only sensible in a throwaway account."
+  type        = number
+  default     = 7
+
+  validation {
+    condition     = var.secret_recovery_window_days == 0 || (var.secret_recovery_window_days >= 7 && var.secret_recovery_window_days <= 30)
+    error_message = "Secrets Manager accepts 0 or a value from 7 to 30."
+  }
+}
