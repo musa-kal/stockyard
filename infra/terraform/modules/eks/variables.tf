@@ -43,3 +43,29 @@ variable "node_disk_size" {
   type        = number
   default     = 30
 }
+
+variable "namespace" {
+  description = "Kubernetes namespace the Stockyard service accounts live in."
+  type        = string
+  default     = "stockyard"
+}
+
+variable "queue_arn" {
+  description = "ARN of the stockyard-events queue."
+  type        = string
+}
+
+variable "dlq_arn" {
+  description = "ARN of the stockyard-events-dlq queue."
+  type        = string
+}
+
+variable "export_bucket_arn" {
+  description = "ARN of the Parquet export bucket."
+  type        = string
+}
+
+variable "export_prefix" {
+  description = "Key prefix the exports are written under."
+  type        = string
+}

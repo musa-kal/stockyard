@@ -58,6 +58,11 @@ module "eks" {
   node_min_size       = var.node_min_size
   node_desired_size   = var.node_desired_size
   node_max_size       = var.node_max_size
+
+  queue_arn         = module.messaging.queue_arn
+  dlq_arn           = module.messaging.dlq_arn
+  export_bucket_arn = module.storage.bucket_arn
+  export_prefix     = module.storage.export_prefix
 }
 
 module "rds" {

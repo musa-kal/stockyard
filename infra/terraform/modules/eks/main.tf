@@ -38,3 +38,10 @@ resource "aws_eks_cluster" "this" {
 
   depends_on = [aws_iam_role_policy_attachment.cluster]
 }
+
+locals {
+  service_policies = {
+    "stockyard-api"         = data.aws_iam_policy_document.api.json
+    "stockyard-projections" = data.aws_iam_policy_document.projections.json
+  }
+}

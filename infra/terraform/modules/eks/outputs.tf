@@ -17,3 +17,8 @@ output "oidc_provider_arn" {
   description = "ARN of the IAM OIDC provider backing IRSA."
   value       = aws_iam_openid_connect_provider.this.arn
 }
+
+output "service_role_arns" {
+  description = "IRSA role ARN per Kubernetes service account."
+  value       = { for name, role in aws_iam_role.irsa : name => role.arn }
+}
