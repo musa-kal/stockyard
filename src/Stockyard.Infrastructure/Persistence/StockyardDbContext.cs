@@ -11,9 +11,14 @@ public sealed class StockyardDbContext(DbContextOptions<StockyardDbContext> opti
 
     public DbSet<JobSite> JobSites => Set<JobSite>();
 
+    public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
+
+    public DbSet<PurchaseOrderLine> PurchaseOrderLines => Set<PurchaseOrderLine>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("dbo");
+        modelBuilder.HasSequence<long>(Configurations.PurchaseOrderConfiguration.NumberSequence).StartsAt(1000);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(StockyardDbContext).Assembly);
     }
 }
