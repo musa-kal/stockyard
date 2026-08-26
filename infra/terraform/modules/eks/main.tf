@@ -43,5 +43,7 @@ locals {
   service_policies = {
     "stockyard-api"         = data.aws_iam_policy_document.api.json
     "stockyard-projections" = data.aws_iam_policy_document.projections.json
+    "stockyard-notifier"    = data.aws_iam_policy_document.notifier.json
+    "stockyard-exporter"    = data.aws_iam_policy_document.exporter.json
   }
 }

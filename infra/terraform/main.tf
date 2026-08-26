@@ -63,6 +63,8 @@ module "eks" {
   dlq_arn           = module.messaging.dlq_arn
   export_bucket_arn = module.storage.bucket_arn
   export_prefix     = module.storage.export_prefix
+
+  signing_secret_arn = aws_secretsmanager_secret.signing.arn
 }
 
 module "rds" {

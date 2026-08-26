@@ -69,3 +69,8 @@ variable "export_prefix" {
   description = "Key prefix the exports are written under."
   type        = string
 }
+
+variable "signing_secret_arn" {
+  description = "ARN of the Secrets Manager secret holding the webhook signing key."
+  type        = string
+}

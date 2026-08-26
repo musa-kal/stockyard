@@ -85,3 +85,24 @@ data "aws_iam_policy_document" "projections" {
     resources = [var.queue_arn]
   }
 }
+
+# notifier: reads the signing key and nothing else. It drives webhooks from
+# WebhookDelivery rows in SQL Server, never from the queue (ADR 0004), so it
+# carries no SQS permission at all.
+data "aws_iam_policy_document" "notifier" {
+  statement {
+    sid       = "ReadSigningSecret"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [var.signing_secret_arn]
+  }
+}
+
+# exporter: writes the nightly Parquet files. StockReconciled goes out through
+# the outbox and the api relay, so no SQS here either.
+data "aws_iam_policy_document" "exporter" {
+  statement {
+    sid       = "WriteExports"
+    actions   = ["s3:PutObject"]
+    resources = ["${var.export_bucket_arn}/${var.export_prefix}/*"]
+  }
+}
