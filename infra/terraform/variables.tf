@@ -127,3 +127,9 @@ variable "secret_recovery_window_days" {
     error_message = "Secrets Manager accepts 0 or a value from 7 to 30."
   }
 }
+
+variable "cluster_admin_principal_arns" {
+  description = "IAM principal ARNs given cluster admin through EKS access entries: the role the pipeline's AWS service connection assumes, and your own role for kubectl."
+  type        = list(string)
+  default     = []
+}

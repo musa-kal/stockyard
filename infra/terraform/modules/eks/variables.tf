@@ -74,3 +74,9 @@ variable "signing_secret_arn" {
   description = "ARN of the Secrets Manager secret holding the webhook signing key."
   type        = string
 }
+
+variable "admin_principal_arns" {
+  description = "IAM role or user ARNs granted cluster admin through access entries."
+  type        = list(string)
+  default     = []
+}
