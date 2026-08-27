@@ -15,6 +15,16 @@ public sealed class StockyardDbContext(DbContextOptions<StockyardDbContext> opti
 
     public DbSet<PurchaseOrderLine> PurchaseOrderLines => Set<PurchaseOrderLine>();
 
+    public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+
+    public DbSet<StockOnHand> StockOnHand => Set<StockOnHand>();
+
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+
+    public DbSet<ProcessedMessage> ProcessedMessages => Set<ProcessedMessage>();
+
+    public DbSet<WebhookDelivery> WebhookDeliveries => Set<WebhookDelivery>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("dbo");
