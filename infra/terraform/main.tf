@@ -54,6 +54,7 @@ module "eks" {
   subnet_ids                   = module.network.private_subnet_ids
   endpoint_public_access_cidrs = var.cluster_endpoint_public_access_cidrs
   admin_principal_arns         = var.cluster_admin_principal_arns
+  log_retention_days           = var.log_retention_days
 
   node_instance_types = var.node_instance_types
   node_min_size       = var.node_min_size

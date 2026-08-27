@@ -80,3 +80,8 @@ variable "admin_principal_arns" {
   type        = list(string)
   default     = []
 }
+
+variable "log_retention_days" {
+  description = "Retention for the control plane log group."
+  type        = number
+}

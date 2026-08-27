@@ -133,3 +133,14 @@ variable "cluster_admin_principal_arns" {
   type        = list(string)
   default     = []
 }
+
+variable "log_retention_days" {
+  description = "Retention for CloudWatch log groups (EKS control plane and container logs)."
+  type        = number
+  default     = 30
+
+  validation {
+    condition     = contains([1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365], var.log_retention_days)
+    error_message = "Use one of the retention values CloudWatch Logs accepts up to a year: 1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365."
+  }
+}

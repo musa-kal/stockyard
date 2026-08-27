@@ -19,6 +19,13 @@ resource "aws_iam_role_policy_attachment" "cluster" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
 }
 
+# Created ahead of the cluster so the retention applies from the first log line;
+# EKS would otherwise create the group itself with no expiry.
+resource "aws_cloudwatch_log_group" "cluster" {
+  name              = "/aws/eks/${var.cluster_name}/cluster"
+  retention_in_days = var.log_retention_days
+}
+
 resource "aws_eks_cluster" "this" {
   name     = var.cluster_name
   version  = var.cluster_version
@@ -36,7 +43,12 @@ resource "aws_eks_cluster" "this" {
     public_access_cidrs     = var.endpoint_public_access_cidrs
   }
 
-  depends_on = [aws_iam_role_policy_attachment.cluster]
+  enabled_cluster_log_types = ["api", "audit", "authenticator"]
+
+  depends_on = [
+    aws_iam_role_policy_attachment.cluster,
+    aws_cloudwatch_log_group.cluster,
+  ]
 }
 
 locals {
