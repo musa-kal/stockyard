@@ -89,4 +89,6 @@ module "observability" {
 
   name        = local.name
   alarm_email = var.alarm_email
+  queue_name  = module.messaging.queue_name
+  dlq_name    = module.messaging.dlq_name
 }
