@@ -22,3 +22,8 @@ output "security_group_id" {
   description = "Security group attached to the instance."
   value       = aws_security_group.this.id
 }
+
+output "instance_identifier" {
+  description = "RDS instance identifier, used as the CloudWatch dimension."
+  value       = aws_db_instance.this.identifier
+}

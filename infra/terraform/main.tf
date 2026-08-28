@@ -91,4 +91,6 @@ module "observability" {
   alarm_email = var.alarm_email
   queue_name  = module.messaging.queue_name
   dlq_name    = module.messaging.dlq_name
+
+  db_instance_identifier = module.rds.instance_identifier
 }

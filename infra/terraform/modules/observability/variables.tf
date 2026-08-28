@@ -24,3 +24,14 @@ variable "max_message_age_seconds" {
   type        = number
   default     = 300
 }
+
+variable "db_instance_identifier" {
+  description = "RDS instance identifier to alarm on."
+  type        = string
+}
+
+variable "db_free_storage_threshold_bytes" {
+  description = "Free storage below which the database alarm fires."
+  type        = number
+  default     = 2147483648
+}
