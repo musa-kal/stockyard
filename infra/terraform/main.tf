@@ -93,4 +93,9 @@ module "observability" {
   dlq_name    = module.messaging.dlq_name
 
   db_instance_identifier = module.rds.instance_identifier
+
+  cluster_name       = module.eks.cluster_name
+  oidc_provider_arn  = module.eks.oidc_provider_arn
+  oidc_issuer        = module.eks.oidc_issuer
+  log_retention_days = var.log_retention_days
 }

@@ -35,3 +35,23 @@ variable "db_free_storage_threshold_bytes" {
   type        = number
   default     = 2147483648
 }
+
+variable "cluster_name" {
+  description = "EKS cluster the CloudWatch observability add-on is installed into."
+  type        = string
+}
+
+variable "oidc_provider_arn" {
+  description = "IAM OIDC provider of the cluster, for the agent's IRSA role."
+  type        = string
+}
+
+variable "oidc_issuer" {
+  description = "OIDC issuer without the scheme."
+  type        = string
+}
+
+variable "log_retention_days" {
+  description = "Retention for the Container Insights log groups."
+  type        = number
+}

@@ -22,3 +22,8 @@ output "service_role_arns" {
   description = "IRSA role ARN per Kubernetes service account."
   value       = { for name, role in aws_iam_role.irsa : name => role.arn }
 }
+
+output "oidc_issuer" {
+  description = "OIDC issuer host and path, without the scheme, as used in IRSA trust conditions."
+  value       = local.oidc_issuer
+}
