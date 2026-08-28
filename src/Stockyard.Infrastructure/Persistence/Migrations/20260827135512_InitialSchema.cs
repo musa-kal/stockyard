@@ -356,6 +356,13 @@ namespace Stockyard.Infrastructure.Persistence.Migrations
                 schema: "dbo",
                 table: "WebhookDelivery",
                 column: "SupplierId");
+
+            // Stock held off site. Movements store null for it; StockOnHand keys on this row.
+            migrationBuilder.InsertData(
+                schema: "dbo",
+                table: "JobSite",
+                columns: new[] { "Id", "Code", "Name", "Active" },
+                values: new object[] { Guid.Empty, "WAREHOUSE", "Warehouse", true });
         }
 
         /// <inheritdoc />
