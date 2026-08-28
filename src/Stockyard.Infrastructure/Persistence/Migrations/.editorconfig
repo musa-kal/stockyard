@@ -1,0 +1,3 @@
+# Migrations are scaffolded by dotnet ef; analyzers should not ask to rewrite them.
+[*.cs]
+generated_code = true
