@@ -144,3 +144,9 @@ variable "log_retention_days" {
     error_message = "Use one of the retention values CloudWatch Logs accepts up to a year: 1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365."
   }
 }
+
+variable "alarm_email" {
+  description = "Email address that receives CloudWatch alarm notifications. Leave null to skip the subscription."
+  type        = string
+  default     = null
+}

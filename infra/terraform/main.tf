@@ -83,3 +83,10 @@ module "rds" {
   backup_retention_days      = var.db_backup_retention_days
   deletion_protection        = var.db_deletion_protection
 }
+
+module "observability" {
+  source = "./modules/observability"
+
+  name        = local.name
+  alarm_email = var.alarm_email
+}
