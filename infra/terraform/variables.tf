@@ -2,18 +2,33 @@ variable "aws_region" {
   description = "Region every resource is created in. The application and the LocalStack setup both assume us-east-1."
   type        = string
   default     = "us-east-1"
+
+  validation {
+    condition     = can(regex("^[a-z]{2}(-gov)?-[a-z]+-[0-9]$", var.aws_region))
+    error_message = "aws_region must look like a region code, for example us-east-1."
+  }
 }
 
 variable "project" {
   description = "Short name used as the prefix for resource names and the Project tag."
   type        = string
   default     = "stockyard"
+
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9-]{2,19}$", var.project))
+    error_message = "project must be 3 to 20 lowercase letters, digits, or hyphens, starting with a letter. It ends up in bucket and role names."
+  }
 }
 
 variable "environment" {
   description = "Environment name, used in tags and in a few names that must be unique per account."
   type        = string
   default     = "dev"
+
+  validation {
+    condition     = can(regex("^[a-z0-9]{2,10}$", var.environment))
+    error_message = "environment must be 2 to 10 lowercase letters or digits."
+  }
 }
 
 variable "tags" {
@@ -26,12 +41,22 @@ variable "vpc_cidr" {
   description = "CIDR block for the VPC. A /16 leaves room for /20 subnets in up to eight zones."
   type        = string
   default     = "10.40.0.0/16"
+
+  validation {
+    condition     = can(cidrhost(var.vpc_cidr, 0)) && tonumber(split("/", var.vpc_cidr)[1]) <= 20
+    error_message = "vpc_cidr must be a valid IPv4 CIDR no smaller than /20, since subnets are carved out as four bits longer."
+  }
 }
 
 variable "availability_zone_count" {
   description = "How many availability zones to spread subnets over. EKS needs at least two."
   type        = number
   default     = 2
+
+  validation {
+    condition     = var.availability_zone_count >= 2 && var.availability_zone_count <= 3
+    error_message = "EKS needs subnets in at least two zones; more than three only adds cost here."
+  }
 }
 
 variable "export_retention_days" {
