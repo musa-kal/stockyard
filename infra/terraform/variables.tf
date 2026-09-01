@@ -74,6 +74,11 @@ variable "cluster_version" {
   description = "Kubernetes minor version for EKS, for example 1.34. Upgrades go one minor version at a time."
   type        = string
   default     = "1.34"
+
+  validation {
+    condition     = can(regex("^1[.][0-9]{2}$", var.cluster_version))
+    error_message = "cluster_version is a Kubernetes minor version such as 1.34, without a patch number."
+  }
 }
 
 variable "cluster_endpoint_public_access_cidrs" {
@@ -86,6 +91,11 @@ variable "node_instance_types" {
   description = "Instance types for the managed node group. Two t3.medium nodes fit the four services, the migrate job, and the system add-ons."
   type        = list(string)
   default     = ["t3.medium"]
+
+  validation {
+    condition     = length(var.node_instance_types) > 0
+    error_message = "Give the node group at least one instance type."
+  }
 }
 
 variable "node_min_size" {
@@ -98,6 +108,11 @@ variable "node_desired_size" {
   description = "Worker nodes at creation time."
   type        = number
   default     = 2
+
+  validation {
+    condition     = var.node_desired_size >= var.node_min_size && var.node_desired_size <= var.node_max_size
+    error_message = "node_desired_size must sit between node_min_size and node_max_size."
+  }
 }
 
 variable "node_max_size" {
@@ -110,6 +125,11 @@ variable "db_instance_class" {
   description = "RDS instance class for SQL Server Express. db.t3.small (2 GiB) is the smallest that holds the working set comfortably."
   type        = string
   default     = "db.t3.small"
+
+  validation {
+    condition     = startswith(var.db_instance_class, "db.")
+    error_message = "db_instance_class is an RDS class name and starts with db., for example db.t3.small."
+  }
 }
 
 variable "db_engine_version" {
@@ -122,18 +142,33 @@ variable "db_allocated_storage" {
   description = "Initial gp3 storage in GiB."
   type        = number
   default     = 20
+
+  validation {
+    condition     = var.db_allocated_storage >= 20
+    error_message = "RDS for SQL Server needs at least 20 GiB."
+  }
 }
 
 variable "db_max_allocated_storage" {
   description = "Upper bound for RDS storage autoscaling in GiB. Express caps each database at 10 GB regardless."
   type        = number
   default     = 50
+
+  validation {
+    condition     = var.db_max_allocated_storage >= var.db_allocated_storage
+    error_message = "db_max_allocated_storage must be at least db_allocated_storage."
+  }
 }
 
 variable "db_backup_retention_days" {
   description = "Days of automated backups (point in time restore window)."
   type        = number
   default     = 7
+
+  validation {
+    condition     = var.db_backup_retention_days >= 1 && var.db_backup_retention_days <= 35
+    error_message = "Keep between 1 and 35 days of backups; 0 would turn off point in time restore."
+  }
 }
 
 variable "db_deletion_protection" {
