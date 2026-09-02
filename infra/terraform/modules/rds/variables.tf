@@ -14,8 +14,8 @@ variable "subnet_ids" {
 }
 
 variable "allowed_security_group_ids" {
-  description = "Security groups allowed to connect on 1433, normally the EKS cluster security group the nodes use."
-  type        = list(string)
+  description = "Security groups allowed to connect on 1433, keyed by a static label (the IDs are unknown until apply), normally the EKS cluster security group the nodes use."
+  type        = map(string)
 }
 
 variable "instance_class" {

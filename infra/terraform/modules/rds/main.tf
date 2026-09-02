@@ -10,7 +10,7 @@ resource "aws_security_group" "this" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "sql" {
-  for_each = toset(var.allowed_security_group_ids)
+  for_each = var.allowed_security_group_ids
 
   security_group_id            = aws_security_group.this.id
   description                  = "SQL Server from the EKS nodes"
