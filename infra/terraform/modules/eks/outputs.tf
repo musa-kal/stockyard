@@ -1,6 +1,8 @@
 output "cluster_name" {
-  description = "Name of the EKS cluster."
+  description = "Name of the EKS cluster. Only known once the node group exists, so add-ons installed from outside the module have somewhere to schedule."
   value       = aws_eks_cluster.this.name
+
+  depends_on = [aws_eks_node_group.default]
 }
 
 output "cluster_endpoint" {
