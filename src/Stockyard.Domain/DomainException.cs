@@ -25,5 +25,11 @@ public sealed class DomainException : Exception
         ErrorNumber = errorNumber;
     }
 
+    public DomainException(int errorNumber, string message, Exception innerException)
+        : base(message, innerException)
+    {
+        ErrorNumber = errorNumber;
+    }
+
     public int ErrorNumber { get; }
 }
