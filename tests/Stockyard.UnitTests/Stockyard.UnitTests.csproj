@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Stockyard.Domain\Stockyard.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Stockyard.Infrastructure\Stockyard.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
