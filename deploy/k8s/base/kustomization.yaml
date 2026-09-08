@@ -10,3 +10,10 @@ labels:
 
 resources:
   - namespace.yaml
+
+# Every non-secret setting the services read. Overlays merge in the endpoints
+# (queue URLs, export destination, LocalStack service URLs) for their target.
+configMapGenerator:
+  - name: stockyard-config
+    envs:
+      - config.env
