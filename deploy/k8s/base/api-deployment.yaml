@@ -37,6 +37,23 @@ spec:
           ports:
             - name: http
               containerPort: 8080
+          # /healthz has no dependencies, so a slow database never restarts
+          # the pod; /readyz checks SQL Server and only takes it out of the
+          # Service until the database answers again.
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
           envFrom:
             - configMapRef:
                 name: stockyard-config

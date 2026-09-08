@@ -12,6 +12,7 @@ resources:
   - namespace.yaml
   - api-serviceaccount.yaml
   - api-deployment.yaml
+  - api-service.yaml
 
 # Every non-secret setting the services read. Overlays merge in the endpoints
 # (queue URLs, export destination, LocalStack service URLs) for their target.
