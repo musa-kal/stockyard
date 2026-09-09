@@ -1,5 +1,6 @@
 using Stockyard.Domain;
 using Stockyard.Infrastructure.Persistence;
+using Stockyard.Infrastructure.Procedures;
 
 namespace Stockyard.IntegrationTests;
 
@@ -56,6 +57,17 @@ internal static class TestData
         }
 
         await db.SaveChangesAsync();
+        return order;
+    }
+
+    /// <summary>Puts stock on hand the way production does: post an order and receive it.</summary>
+    public static async Task<PurchaseOrder> ReceiveStockAsync(StockyardDbContext db, Item item, Guid jobSiteId, decimal quantity)
+    {
+        var supplier = await AddSupplierAsync(db, webhookUrl: null);
+        var order = await AddDraftOrderAsync(db, supplier, jobSiteId, (item, quantity));
+        var procedures = new StockyardProcedures(db);
+        await procedures.PostPurchaseOrderAsync(order.Id, "seed-" + order.Number, CancellationToken.None);
+        await procedures.ReceiveDeliveryAsync(order.Id, [new ReceiptLine(1, quantity)], CancellationToken.None);
         return order;
     }
 }
