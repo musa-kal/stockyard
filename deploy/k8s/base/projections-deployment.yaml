@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stockyard-projections
+  labels:
+    app.kubernetes.io/name: stockyard-projections
+    app.kubernetes.io/component: worker
+spec:
+  # Only consumer of stockyard-events. More replicas are safe (the
+  # ProcessedMessage guard makes delivery idempotent) but one keeps up.
+  replicas: 1
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: stockyard-projections
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: stockyard-projections
+        app.kubernetes.io/component: worker
+    spec:
+      serviceAccountName: stockyard-projections
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1654
+        runAsGroup: 1654
+        fsGroup: 1654
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: projections
+          image: stockyard-projections
+          envFrom:
+            - configMapRef:
+                name: stockyard-config
+            - secretRef:
+                name: stockyard-db
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 192Mi
+            limits:
+              cpu: 500m
+              memory: 384Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
