@@ -1,7 +1,7 @@
 namespace Stockyard.Infrastructure.Queries;
 
 /// <summary>A row of dbo.vw_OpenPurchaseOrders.</summary>
-public sealed class OpenPurchaseOrderLineRow
+public sealed record OpenPurchaseOrderLineRow
 {
     public Guid PurchaseOrderId { get; init; }
 

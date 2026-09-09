@@ -1,7 +1,7 @@
 namespace Stockyard.Infrastructure.Queries;
 
 /// <summary>A row of dbo.vw_StockOnHand.</summary>
-public sealed class StockOnHandRow
+public sealed record StockOnHandRow
 {
     public required string ItemSku { get; init; }
 

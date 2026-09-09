@@ -21,15 +21,17 @@ public sealed class StockQueries(StockyardDbContext db)
             query = query.Where(r => r.JobSiteCode == jobSiteCode);
         }
 
-        return await query
+        var rows = await query
             .OrderBy(r => r.ItemSku)
             .ThenBy(r => r.JobSiteCode)
             .ToListAsync(cancellationToken);
+
+        return [.. rows.Select(r => r with { LastMovementAt = AsUtc(r.LastMovementAt) })];
     }
 
     public async Task<IReadOnlyList<OpenPurchaseOrderLineRow>> GetOpenPurchaseOrderLinesAsync(CancellationToken cancellationToken)
     {
-        return await db.Database
+        var rows = await db.Database
             .SqlQuery<OpenPurchaseOrderLineRow>(
                 $"""
                 SELECT PurchaseOrderId, Number, Status, SupplierCode, JobSiteCode, PostedAt, LineNumber,
@@ -40,5 +42,10 @@ public sealed class StockQueries(StockyardDbContext db)
             .ThenBy(r => r.Number)
             .ThenBy(r => r.LineNumber)
             .ToListAsync(cancellationToken);
+
+        return [.. rows.Select(r => r with { PostedAt = r.PostedAt is { } postedAt ? AsUtc(postedAt) : null })];
     }
+
+    // Ad hoc SqlQuery types are not part of the model, so the UTC converter does not reach them.
+    private static DateTime AsUtc(DateTime value) => DateTime.SpecifyKind(value, DateTimeKind.Utc);
 }
