@@ -8,8 +8,13 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.13" />
   </ItemGroup>
+  <ItemGroup Label="AWS">
+    <PackageVersion Include="AWSSDK.SQS" Version="4.0.100.20" />
+  </ItemGroup>
   <ItemGroup Label="Hosting">
     <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.13" />
   </ItemGroup>
   <ItemGroup Label="Transitive pins">
     <!-- Microsoft.Data.SqlClient 7.1.1 brings 9.0.18, which has published advisories. -->
