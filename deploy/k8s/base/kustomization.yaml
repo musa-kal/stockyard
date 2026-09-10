@@ -17,6 +17,8 @@ resources:
   - projections-deployment.yaml
   - notifier-serviceaccount.yaml
   - notifier-deployment.yaml
+  - exporter-serviceaccount.yaml
+  - exporter-deployment.yaml
 
 # Every non-secret setting the services read. Overlays merge in the endpoints
 # (queue URLs, export destination, LocalStack service URLs) for their target.
