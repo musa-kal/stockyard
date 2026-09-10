@@ -12,6 +12,10 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: stockyard-exporter
+  # A rolling update briefly runs the old and new pod side by side; if that
+  # overlaps 02:00 UTC both would reconcile and export the same day.
+  strategy:
+    type: Recreate
   template:
     metadata:
       labels:
