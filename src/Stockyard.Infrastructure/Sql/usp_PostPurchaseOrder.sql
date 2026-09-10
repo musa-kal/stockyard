@@ -8,7 +8,8 @@
                  @IdempotencyKey   client supplied key (1 to 64 characters). Posting again with the
                                    same key is a no-op, so a retried request returns the same order.
     Result sets: none. The caller reads the order afterwards.
-    Errors:      50000  the key is missing or too long, or the order has no lines
+    Errors:      50000  the key is missing or the order has no lines (the API enforces the
+                        64 character limit, a longer value would be truncated by the parameter)
                  50001  the order was already posted under a different key
                  50004  the order does not exist
                  50005  the order is cancelled
