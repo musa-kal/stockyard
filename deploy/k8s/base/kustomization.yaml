@@ -13,6 +13,7 @@ resources:
   - api-serviceaccount.yaml
   - api-deployment.yaml
   - api-service.yaml
+  - api-hpa.yaml
   - projections-serviceaccount.yaml
   - projections-deployment.yaml
   - notifier-serviceaccount.yaml
