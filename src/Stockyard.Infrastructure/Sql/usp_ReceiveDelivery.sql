@@ -119,7 +119,8 @@ BEGIN
         FROM @Receipt AS r
         INNER JOIN dbo.PurchaseOrderLine AS l
             ON l.PurchaseOrderId = @PurchaseOrderId
-            AND l.LineNumber = r.LineNumber;
+            AND l.LineNumber = r.LineNumber
+        ORDER BY r.LineNumber; -- identity values follow line order
 
         UPDATE dbo.PurchaseOrder
         SET Status = CASE
