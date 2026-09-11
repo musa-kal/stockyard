@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: stockyard-api
+  labels:
+    app.kubernetes.io/name: stockyard-api
+spec:
+  # Node drains during an upgrade take one api pod at a time.
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: stockyard-api
