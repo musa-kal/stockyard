@@ -1,0 +1,58 @@
+# Applies EF Core migrations and the SqlObjects scripts, then exits. A Job's pod
+# template is immutable, so the deploy step deletes the previous run before it
+# applies a new image tag and waits for completion before rolling the services.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: stockyard-migrate
+  labels:
+    app.kubernetes.io/name: stockyard-migrate
+    app.kubernetes.io/component: migration
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 600
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: stockyard-migrate
+        app.kubernetes.io/component: migration
+    spec:
+      restartPolicy: Never
+      serviceAccountName: stockyard-api
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1654
+        runAsGroup: 1654
+        fsGroup: 1654
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: migrate
+          image: stockyard-api
+          args: ["migrate"]
+          envFrom:
+            - configMapRef:
+                name: stockyard-config
+            - secretRef:
+                name: stockyard-db
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
