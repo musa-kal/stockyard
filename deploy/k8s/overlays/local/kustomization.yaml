@@ -1,0 +1,20 @@
+# Docker Desktop or kind. Build the images first with the tag "local":
+#   docker build -f src/Stockyard.Api/Dockerfile -t stockyard-api:local .
+# (and the same for projections, notifier, exporter), then
+#   kubectl apply -k deploy/k8s/overlays/local
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - secrets.yaml
+
+images:
+  - name: stockyard-api
+    newTag: local
+  - name: stockyard-projections
+    newTag: local
+  - name: stockyard-notifier
+    newTag: local
+  - name: stockyard-exporter
+    newTag: local
