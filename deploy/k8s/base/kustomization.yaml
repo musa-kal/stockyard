@@ -22,6 +22,7 @@ resources:
   - exporter-serviceaccount.yaml
   - exporter-deployment.yaml
   - migrate-job.yaml
+  - networkpolicy.yaml
 
 # Every non-secret setting the services read. Overlays merge in the endpoints
 # (queue URLs, export destination, LocalStack service URLs) for their target.
