@@ -28,6 +28,7 @@ configMapGenerator:
       - local.env
 
 patches:
+  - path: laptop-sizing.yaml
   - path: localstack-credentials.yaml
     target:
       kind: Deployment

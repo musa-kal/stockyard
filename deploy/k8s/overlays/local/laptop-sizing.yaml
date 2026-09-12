@@ -1,0 +1,23 @@
+# One api pod is plenty on a laptop and leaves memory for SQL Server and
+# LocalStack. The PDB is relaxed to match, otherwise it would block any drain.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stockyard-api
+spec:
+  replicas: 1
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: stockyard-api
+spec:
+  minReplicas: 1
+  maxReplicas: 2
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: stockyard-api
+spec:
+  minAvailable: 0
