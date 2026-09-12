@@ -18,3 +18,20 @@ images:
     newTag: local
   - name: stockyard-exporter
     newTag: local
+
+# SQS and S3 come from the LocalStack container the compose file runs; SQL
+# Server is the compose container too, reached through host.docker.internal.
+configMapGenerator:
+  - name: stockyard-config
+    behavior: merge
+    envs:
+      - local.env
+
+patches:
+  - path: localstack-credentials.yaml
+    target:
+      kind: Deployment
+  - path: localstack-credentials.yaml
+    target:
+      kind: Job
+      name: stockyard-migrate
