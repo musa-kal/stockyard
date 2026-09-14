@@ -11,6 +11,9 @@
   <ItemGroup Label="AWS">
     <PackageVersion Include="AWSSDK.SQS" Version="4.0.100.20" />
   </ItemGroup>
+  <ItemGroup Label="Api">
+    <PackageVersion Include="AspNetCore.HealthChecks.SqlServer" Version="9.0.0" />
+  </ItemGroup>
   <ItemGroup Label="Hosting">
     <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.13" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.13" />
