@@ -19,6 +19,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Stockyard.Infrastructure\Stockyard.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Stockyard.Messaging\Stockyard.Messaging.csproj" />
+    <ProjectReference Include="..\..\src\Stockyard.Projections\Stockyard.Projections.csproj" />
   </ItemGroup>
 
 </Project>
