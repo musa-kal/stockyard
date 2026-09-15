@@ -1,4 +1,5 @@
 using Stockyard.Api;
+using Stockyard.Api.Endpoints;
 using Stockyard.Api.Errors;
 using Stockyard.Infrastructure;
 
@@ -15,5 +16,8 @@ app.UseExceptionHandler();
 app.UseStatusCodePages();
 
 app.MapHealthEndpoints();
+
+var api = app.MapGroup("/api/v1");
+api.MapMasterDataEndpoints();
 
 await app.RunAsync();
