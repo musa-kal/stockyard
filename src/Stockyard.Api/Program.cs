@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Stockyard.Api;
 using Stockyard.Api.Endpoints;
 using Stockyard.Api.Errors;
@@ -8,6 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddStockyardDatabase(builder.Configuration);
 builder.Services.AddStockyardHealthChecks(builder.Configuration);
 builder.Services.AddProblemDetails();
+builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddExceptionHandler<StockyardExceptionHandler>();
 
 var app = builder.Build();
@@ -19,5 +21,6 @@ app.MapHealthEndpoints();
 
 var api = app.MapGroup("/api/v1");
 api.MapMasterDataEndpoints();
+api.MapPurchaseOrderEndpoints();
 
 await app.RunAsync();
