@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Stockyard.Api.Contracts;
 using Stockyard.Domain;
 using Stockyard.Infrastructure.Persistence;
+using Stockyard.Infrastructure.Procedures;
 
 namespace Stockyard.Api.Endpoints;
 
@@ -16,6 +18,7 @@ public static class PurchaseOrderEndpoints
         orders.MapPost("/", CreateAsync);
         orders.MapGet("/{id:guid}", GetAsync);
         orders.MapPost("/{id:guid}/lines", AddLineAsync);
+        orders.MapPost("/{id:guid}/post", PostAsync);
 
         return api;
     }
@@ -95,4 +98,30 @@ public static class PurchaseOrderEndpoints
                 line.UnitCost,
                 line.LineTotal));
     }
+
+    /// <summary>
+    /// Posts a draft. The Idempotency-Key header makes a retried request safe: the same key
+    /// returns the same order, a different key on a posted order is a 409.
+    /// </summary>
+    private static async Task<Ok<PurchaseOrderResponse>> PostAsync(
+        Guid id,
+        [FromHeader(Name = IdempotencyKeyHeader)] string? idempotencyKey,
+        StockyardProcedures procedures,
+        StockyardDbContext db,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(idempotencyKey) || idempotencyKey.Length > IdempotencyKeyMaxLength)
+        {
+            throw new DomainException($"The {IdempotencyKeyHeader} header is required and must be 1 to {IdempotencyKeyMaxLength} characters.");
+        }
+
+        await procedures.PostPurchaseOrderAsync(id, idempotencyKey, cancellationToken);
+
+        var order = await PurchaseOrderReader.LoadAsync(db, id, cancellationToken);
+        return TypedResults.Ok(order);
+    }
+
+    public const string IdempotencyKeyHeader = "Idempotency-Key";
+
+    private const int IdempotencyKeyMaxLength = 64;
 }
