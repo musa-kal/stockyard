@@ -33,3 +33,22 @@ public sealed record CreatedPurchaseOrderLineResponse(
     decimal QuantityReceived,
     decimal UnitCost,
     decimal LineTotal);
+
+public sealed record ReceiveDeliveryRequest(IReadOnlyList<ReceiptLineRequest>? Lines);
+
+public sealed record ReceiptLineRequest(int LineNumber, decimal Quantity);
+
+/// <summary>A line of dbo.vw_OpenPurchaseOrders.</summary>
+public sealed record OpenPurchaseOrderLineResponse(
+    Guid PurchaseOrderId,
+    string Number,
+    PurchaseOrderStatus Status,
+    string SupplierCode,
+    string JobSiteCode,
+    DateTime? PostedAt,
+    int LineNumber,
+    string ItemSku,
+    decimal QuantityOrdered,
+    decimal QuantityReceived,
+    decimal QuantityOutstanding,
+    decimal UnitCost);

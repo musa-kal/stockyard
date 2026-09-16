@@ -5,6 +5,7 @@ using Stockyard.Api.Contracts;
 using Stockyard.Domain;
 using Stockyard.Infrastructure.Persistence;
 using Stockyard.Infrastructure.Procedures;
+using Stockyard.Infrastructure.Queries;
 
 namespace Stockyard.Api.Endpoints;
 
@@ -19,6 +20,9 @@ public static class PurchaseOrderEndpoints
         orders.MapGet("/{id:guid}", GetAsync);
         orders.MapPost("/{id:guid}/lines", AddLineAsync);
         orders.MapPost("/{id:guid}/post", PostAsync);
+        orders.MapPost("/{id:guid}/receipts", ReceiveAsync);
+        orders.MapGet("/", ListAsync);
+        orders.MapGet("/open", ListOpenLinesAsync);
 
         return api;
     }
@@ -121,7 +125,72 @@ public static class PurchaseOrderEndpoints
         return TypedResults.Ok(order);
     }
 
+    private static async Task<Ok<PurchaseOrderResponse>> ReceiveAsync(
+        Guid id,
+        ReceiveDeliveryRequest request,
+        StockyardProcedures procedures,
+        StockyardDbContext db,
+        CancellationToken cancellationToken)
+    {
+        if (request.Lines is not { Count: > 0 } lines)
+        {
+            throw new DomainException("A delivery needs at least one line.");
+        }
+
+        await procedures.ReceiveDeliveryAsync(
+            id,
+            lines.Select(l => new ReceiptLine(l.LineNumber, l.Quantity)),
+            cancellationToken);
+
+        var order = await PurchaseOrderReader.LoadAsync(db, id, cancellationToken);
+        return TypedResults.Ok(order);
+    }
+
+    private static async Task<Ok<List<PurchaseOrderResponse>>> ListAsync(
+        string? status,
+        StockyardDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var query = PurchaseOrderReader.Query(db);
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            if (!Enum.TryParse<PurchaseOrderStatus>(status, ignoreCase: true, out var parsed) || !Enum.IsDefined(parsed))
+            {
+                throw new DomainException($"status must be one of {string.Join(", ", Enum.GetNames<PurchaseOrderStatus>())}.");
+            }
+
+            query = query.Where(o => o.Status == parsed);
+        }
+
+        var orders = await query.OrderBy(o => o.Number).Take(ListLimit).ToListAsync(cancellationToken);
+        return TypedResults.Ok(orders);
+    }
+
+    private static async Task<Ok<List<OpenPurchaseOrderLineResponse>>> ListOpenLinesAsync(
+        StockQueries queries,
+        CancellationToken cancellationToken)
+    {
+        var rows = await queries.GetOpenPurchaseOrderLinesAsync(cancellationToken);
+        return TypedResults.Ok(rows
+            .Select(r => new OpenPurchaseOrderLineResponse(
+                r.PurchaseOrderId,
+                r.Number,
+                (PurchaseOrderStatus)r.Status,
+                r.SupplierCode,
+                r.JobSiteCode,
+                r.PostedAt,
+                r.LineNumber,
+                r.ItemSku,
+                r.QuantityOrdered,
+                r.QuantityReceived,
+                r.QuantityOutstanding,
+                r.UnitCost))
+            .ToList());
+    }
+
     public const string IdempotencyKeyHeader = "Idempotency-Key";
 
     private const int IdempotencyKeyMaxLength = 64;
+
+    private const int ListLimit = 500;
 }
