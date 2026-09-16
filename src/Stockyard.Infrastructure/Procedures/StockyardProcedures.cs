@@ -43,15 +43,19 @@ public sealed class StockyardProcedures(StockyardDbContext db)
             new SqlParameter("@Lines", SqlDbType.Structured) { TypeName = "dbo.ReceiptLineType", Value = table });
     }
 
-    public Task IssueStockAsync(Guid itemId, Guid jobSiteId, decimal quantity, string reference, CancellationToken cancellationToken)
+    /// <summary>Issues stock and returns the id and time of the Issue movement.</summary>
+    public async Task<IssuedStock> IssueStockAsync(Guid itemId, Guid jobSiteId, decimal quantity, string reference, CancellationToken cancellationToken)
     {
-        return ExecuteAsync(
+        var rows = await QueryAsync<IssuedStockRow>(
             "EXEC dbo.usp_IssueStock @ItemId = @ItemId, @JobSiteId = @JobSiteId, @Quantity = @Quantity, @Reference = @Reference",
             cancellationToken,
             new SqlParameter("@ItemId", SqlDbType.UniqueIdentifier) { Value = itemId },
             new SqlParameter("@JobSiteId", SqlDbType.UniqueIdentifier) { Value = jobSiteId },
             new SqlParameter("@Quantity", SqlDbType.Decimal) { Precision = 18, Scale = 3, Value = quantity },
             new SqlParameter("@Reference", SqlDbType.NVarChar, 40) { Value = reference });
+
+        var row = rows.Single();
+        return new IssuedStock(row.MovementId, DateTime.SpecifyKind(row.OccurredAt, DateTimeKind.Utc));
     }
 
     /// <summary>
@@ -60,11 +64,10 @@ public sealed class StockyardProcedures(StockyardDbContext db)
     /// </summary>
     public async Task<IReadOnlyList<StockDifference>> ReconcileStockAsync(bool apply, CancellationToken cancellationToken)
     {
-        var rows = await db.Database
-            .SqlQueryRaw<DifferenceRow>(
-                "EXEC dbo.usp_ReconcileStock @Apply = @Apply",
-                new SqlParameter("@Apply", SqlDbType.Bit) { Value = apply })
-            .ToListAsync(cancellationToken);
+        var rows = await QueryAsync<DifferenceRow>(
+            "EXEC dbo.usp_ReconcileStock @Apply = @Apply",
+            cancellationToken,
+            new SqlParameter("@Apply", SqlDbType.Bit) { Value = apply });
 
         return [.. rows.Select(r => new StockDifference(r.ItemSku, r.JobSiteCode, r.Projected, r.Actual))];
     }
@@ -81,8 +84,28 @@ public sealed class StockyardProcedures(StockyardDbContext db)
         }
     }
 
+    private async Task<List<T>> QueryAsync<T>(string sql, CancellationToken cancellationToken, params SqlParameter[] parameters)
+    {
+        try
+        {
+            // EXEC is not composable, so the query is materialised as is.
+            return await db.Database.SqlQueryRaw<T>(sql, parameters).ToListAsync(cancellationToken);
+        }
+        catch (SqlException ex) when (IsBusinessError(ex.Number))
+        {
+            throw new DomainException(ex.Number, ex.Message, ex);
+        }
+    }
+
     private static bool IsBusinessError(int number) =>
         number is >= ErrorNumbers.Validation and <= ErrorNumbers.InvalidState;
+
+    private sealed class IssuedStockRow
+    {
+        public long MovementId { get; init; }
+
+        public DateTime OccurredAt { get; init; }
+    }
 
     private sealed class DifferenceRow
     {

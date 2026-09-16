@@ -7,7 +7,7 @@
                  @JobSiteId  the site the stock leaves; the empty GUID means the warehouse
                  @Quantity   positive quantity to issue
                  @Reference  free text such as a work order or a crew name (1 to 40 characters)
-    Result sets: none.
+    Result set:  one row, MovementId and OccurredAt of the Issue movement.
     Errors:      50000  the quantity is not positive or the reference is missing
                  50003  the issue would take stock on hand below zero
                  50004  the item or the job site does not exist
@@ -82,6 +82,8 @@ BEGIN
         INSERT dbo.StockMovement (ItemId, JobSiteId, Kind, Quantity, Reference, OccurredAt)
         VALUES (@ItemId, NULLIF(@JobSiteId, @Warehouse), 2, -@Quantity, @Reference, @Now); -- 2 = Issue
 
+        DECLARE @MovementId bigint = SCOPE_IDENTITY();
+
         DECLARE @Payload nvarchar(max) =
         (
             SELECT
@@ -96,6 +98,8 @@ BEGIN
         VALUES (N'StockIssued', @Payload, @Now, 0);
 
         COMMIT TRANSACTION;
+
+        SELECT @MovementId AS MovementId, @Now AS OccurredAt;
     END TRY
     BEGIN CATCH
         IF @@TRANCOUNT > 0
