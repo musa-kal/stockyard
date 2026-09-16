@@ -22,5 +22,6 @@ app.MapHealthEndpoints();
 var api = app.MapGroup("/api/v1");
 api.MapMasterDataEndpoints();
 api.MapPurchaseOrderEndpoints();
+api.MapStockEndpoints();
 
 await app.RunAsync();
