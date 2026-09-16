@@ -7,6 +7,12 @@ resource "aws_eks_addon" "vpc_cni" {
   addon_name                  = "vpc-cni"
   resolve_conflicts_on_create = "OVERWRITE"
   resolve_conflicts_on_update = "OVERWRITE"
+
+  # The VPC CNI ignores NetworkPolicy objects unless its policy agent is on;
+  # the stockyard namespace relies on a default deny for ingress.
+  configuration_values = jsonencode({
+    enableNetworkPolicy = "true"
+  })
 }
 
 resource "aws_eks_addon" "kube_proxy" {
