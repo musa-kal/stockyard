@@ -4,6 +4,11 @@ using Stockyard.Api.Endpoints;
 using Stockyard.Api.Errors;
 using Stockyard.Infrastructure;
 
+if (args is [MigrateCommand.Name, ..])
+{
+    return await MigrateCommand.RunAsync(args[1..]);
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddStockyardDatabase(builder.Configuration);
@@ -25,3 +30,4 @@ api.MapPurchaseOrderEndpoints();
 api.MapStockEndpoints();
 
 await app.RunAsync();
+return 0;
