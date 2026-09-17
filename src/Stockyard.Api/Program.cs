@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Scalar.AspNetCore;
 using Stockyard.Api;
 using Stockyard.Api.Endpoints;
 using Stockyard.Api.Errors;
@@ -19,11 +20,18 @@ builder.Services.AddStockyardHealthChecks(builder.Configuration);
 builder.Services.AddProblemDetails();
 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddExceptionHandler<StockyardExceptionHandler>();
+builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+
+app.MapOpenApi();
+if (app.Environment.IsDevelopment())
+{
+    app.MapScalarApiReference();
+}
 
 app.MapHealthEndpoints();
 
