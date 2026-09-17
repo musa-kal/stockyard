@@ -1,0 +1,26 @@
+# EKS. The account ID 123456789012 is a placeholder: the deploy step rewrites
+# aws.env from terraform output and sets the image tag in a release overlay
+# generated on the agent (see .azure-pipelines/steps/kubectl.yml).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+images:
+  - name: stockyard-api
+    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/stockyard-api
+  - name: stockyard-projections
+    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/stockyard-projections
+  - name: stockyard-notifier
+    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/stockyard-notifier
+  - name: stockyard-exporter
+    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/stockyard-exporter
+
+# Real AWS endpoints; the LocalStack service URLs stay empty so the SDK uses
+# the regional endpoints and the IRSA credentials.
+configMapGenerator:
+  - name: stockyard-config
+    behavior: merge
+    envs:
+      - aws.env
