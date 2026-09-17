@@ -39,6 +39,7 @@ var api = app.MapGroup("/api/v1");
 api.MapMasterDataEndpoints();
 api.MapPurchaseOrderEndpoints();
 api.MapStockEndpoints();
+api.MapOperationsEndpoints();
 
 await app.RunAsync();
 return 0;
