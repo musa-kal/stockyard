@@ -6,6 +6,8 @@ kind: Kustomization
 
 resources:
   - ../../base
+  - secretproviderclass-db.yaml
+  - secretproviderclass-signing.yaml
 
 images:
   - name: stockyard-api
