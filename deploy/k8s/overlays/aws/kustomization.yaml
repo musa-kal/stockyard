@@ -24,3 +24,6 @@ configMapGenerator:
     behavior: merge
     envs:
       - aws.env
+
+patches:
+  - path: irsa.yaml
