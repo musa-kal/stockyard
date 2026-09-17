@@ -29,3 +29,14 @@ configMapGenerator:
 
 patches:
   - path: irsa.yaml
+  - path: mount-db-secret.yaml
+    target:
+      kind: Deployment
+  - path: mount-db-secret.yaml
+    target:
+      kind: Job
+      name: stockyard-migrate
+  - path: mount-signing-secret.yaml
+    target:
+      kind: Deployment
+      name: stockyard-notifier
