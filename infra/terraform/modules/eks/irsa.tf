@@ -50,6 +50,26 @@ resource "aws_iam_role_policy" "irsa" {
   policy = each.value
 }
 
+# The Secrets Store CSI driver fetches secrets with the identity of the pod
+# that mounts them, not its own. Every workload mounts the connection string
+# (the migrate job runs as stockyard-api), so every role needs to read that one
+# secret. The services themselves never call Secrets Manager. See ADR 0105.
+data "aws_iam_policy_document" "mount_db_secret" {
+  statement {
+    sid       = "MountConnectionString"
+    actions   = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
+    resources = [var.db_secret_arn]
+  }
+}
+
+resource "aws_iam_role_policy" "mount_db_secret" {
+  for_each = local.service_policies
+
+  name   = "mount-db-secret"
+  role   = aws_iam_role.irsa[each.key].id
+  policy = data.aws_iam_policy_document.mount_db_secret.json
+}
+
 # api: relays the outbox to the events queue, replays the DLQ back onto it,
 # reads the pending count for /stock/reconcile, and runs on-demand exports.
 data "aws_iam_policy_document" "api" {
@@ -92,7 +112,7 @@ data "aws_iam_policy_document" "projections" {
 data "aws_iam_policy_document" "notifier" {
   statement {
     sid       = "ReadSigningSecret"
-    actions   = ["secretsmanager:GetSecretValue"]
+    actions   = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
     resources = [var.signing_secret_arn]
   }
 }

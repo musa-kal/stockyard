@@ -66,6 +66,7 @@ module "eks" {
   export_bucket_arn = module.storage.bucket_arn
   export_prefix     = module.storage.export_prefix
 
+  db_secret_arn      = aws_secretsmanager_secret.db.arn
   signing_secret_arn = aws_secretsmanager_secret.signing.arn
 }
 

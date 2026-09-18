@@ -70,6 +70,11 @@ variable "export_prefix" {
   type        = string
 }
 
+variable "db_secret_arn" {
+  description = "ARN of the Secrets Manager secret holding the connection string."
+  type        = string
+}
+
 variable "signing_secret_arn" {
   description = "ARN of the Secrets Manager secret holding the webhook signing key."
   type        = string
