@@ -57,3 +57,19 @@ output "alarm_topic_arn" {
   description = "SNS topic the CloudWatch alarms publish to."
   value       = module.observability.alarm_topic_arn
 }
+
+output "k8s_aws_env" {
+  description = "Contents for deploy/k8s/overlays/aws/aws.env: terraform output -raw k8s_aws_env > deploy/k8s/overlays/aws/aws.env"
+  value       = <<-EOT
+    Messaging__QueueUrl=${module.messaging.queue_url}
+    Messaging__DlqUrl=${module.messaging.dlq_url}
+    Messaging__ServiceUrl=
+    Exporter__Destination=${module.storage.destination}
+    Exporter__ServiceUrl=
+  EOT
+}
+
+output "account_id" {
+  description = "AWS account ID, substituted for the placeholder in the aws overlay."
+  value       = data.aws_caller_identity.current.account_id
+}
