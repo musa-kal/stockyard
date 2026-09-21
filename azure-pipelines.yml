@@ -1,0 +1,28 @@
+# Stockyard build and deploy pipeline.
+
+trigger:
+  branches:
+    include:
+      - main
+
+pr:
+  branches:
+    include:
+      - main
+
+variables:
+  - name: buildConfiguration
+    value: Release
+
+stages:
+  - stage: Build
+    displayName: Build and test
+    jobs:
+      - job: dotnet
+        displayName: .NET build and test
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - template: .azure-pipelines/steps/dotnet.yml
+            parameters:
+              configuration: $(buildConfiguration)

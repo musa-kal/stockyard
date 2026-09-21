@@ -1,0 +1,18 @@
+# Restore, build with warnings as errors, and test the solution.
+parameters:
+  - name: configuration
+    type: string
+    default: Release
+
+steps:
+  - task: UseDotNet@2
+    displayName: Install .NET SDK from global.json
+    inputs:
+      packageType: sdk
+      useGlobalJson: true
+
+  - script: dotnet restore
+    displayName: Restore
+
+  - script: dotnet build --no-restore --configuration ${{ parameters.configuration }} -warnaserror
+    displayName: Build
