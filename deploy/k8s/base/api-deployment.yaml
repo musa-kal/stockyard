@@ -24,6 +24,15 @@ spec:
     spec:
       serviceAccountName: stockyard-api
       automountServiceAccountToken: false
+      # Prefer api pods in different zones so losing one zone leaves the
+      # other serving; soft so a single-zone kind cluster still schedules.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: stockyard-api
       securityContext:
         runAsNonRoot: true
         runAsUser: 1654
