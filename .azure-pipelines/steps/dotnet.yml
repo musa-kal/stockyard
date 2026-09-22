@@ -16,3 +16,22 @@ steps:
 
   - script: dotnet build --no-restore --configuration ${{ parameters.configuration }} -warnaserror
     displayName: Build
+
+  # The test projects run on Microsoft.Testing.Platform (see global.json), so
+  # the VSTest --logger flags do not apply; the xunit TRX report does the same
+  # job. Integration tests start SQL Server and LocalStack with Testcontainers,
+  # which works on the hosted ubuntu agents because they ship with Docker.
+  - script: >-
+      dotnet test --no-build --configuration ${{ parameters.configuration }}
+      --report-xunit-trx
+      --results-directory "$(Agent.TempDirectory)/TestResults"
+    displayName: Test
+
+  - task: PublishTestResults@2
+    displayName: Publish test results
+    condition: succeededOrFailed()
+    inputs:
+      testResultsFormat: VSTest
+      testResultsFiles: '**/*.trx'
+      searchFolder: $(Agent.TempDirectory)/TestResults
+      failTaskOnFailedTests: true
