@@ -151,7 +151,7 @@ public static class PurchaseOrderEndpoints
         StockyardDbContext db,
         CancellationToken cancellationToken)
     {
-        var query = PurchaseOrderReader.Query(db);
+        IQueryable<PurchaseOrder> query = db.PurchaseOrders;
         if (!string.IsNullOrWhiteSpace(status))
         {
             if (!Enum.TryParse<PurchaseOrderStatus>(status, ignoreCase: true, out var parsed) || !Enum.IsDefined(parsed))
@@ -162,7 +162,9 @@ public static class PurchaseOrderEndpoints
             query = query.Where(o => o.Status == parsed);
         }
 
-        var orders = await query.OrderBy(o => o.Number).Take(ListLimit).ToListAsync(cancellationToken);
+        var orders = await PurchaseOrderReader
+            .Project(query.OrderBy(o => o.Number).Take(ListLimit))
+            .ToListAsync(cancellationToken);
         return TypedResults.Ok(orders);
     }
 

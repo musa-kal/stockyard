@@ -1,14 +1,18 @@
 using Microsoft.EntityFrameworkCore;
 using Stockyard.Api.Contracts;
+using Stockyard.Domain;
 using Stockyard.Infrastructure.Persistence;
 
 namespace Stockyard.Api.Endpoints;
 
-/// <summary>Projects purchase orders straight into the response shape in one query.</summary>
+/// <summary>
+/// Projects purchase orders straight into the response shape in one query. Filter and sort the
+/// entities first: EF Core cannot translate predicates on the constructed response records.
+/// </summary>
 internal static class PurchaseOrderReader
 {
-    public static IQueryable<PurchaseOrderResponse> Query(StockyardDbContext db) =>
-        db.PurchaseOrders
+    public static IQueryable<PurchaseOrderResponse> Project(IQueryable<PurchaseOrder> orders) =>
+        orders
             .AsNoTracking()
             .Select(o => new PurchaseOrderResponse(
                 o.Id,
@@ -29,5 +33,5 @@ internal static class PurchaseOrderReader
                     .ToList()));
 
     public static Task<PurchaseOrderResponse?> LoadAsync(StockyardDbContext db, Guid id, CancellationToken cancellationToken) =>
-        Query(db).SingleOrDefaultAsync(o => o.Id == id, cancellationToken);
+        Project(db.PurchaseOrders.Where(o => o.Id == id)).SingleOrDefaultAsync(cancellationToken);
 }
