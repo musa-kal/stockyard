@@ -68,3 +68,43 @@ stages:
               awsConnection: $(awsServiceConnection)
               region: $(AWS_REGION)
               registry: $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
+
+  # Plan runs unattended; Apply is a deployment job against the stockyard-aws
+  # environment, whose approval check holds it until someone has read the
+  # published plan.
+  - stage: Deploy
+    displayName: Plan and apply
+    dependsOn: Package
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - job: plan
+        displayName: Terraform plan
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - template: .azure-pipelines/steps/terraform.yml
+            parameters:
+              command: plan
+              awsConnection: ${{ variables.awsServiceConnection }}
+              region: $(AWS_REGION)
+              stateBucket: $(TF_STATE_BUCKET)
+              stateKey: $(TF_STATE_KEY)
+
+      - deployment: apply
+        displayName: Terraform apply and roll out
+        dependsOn: plan
+        pool:
+          vmImage: ubuntu-latest
+        environment: stockyard-aws
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                - template: .azure-pipelines/steps/terraform.yml
+                  parameters:
+                    command: apply
+                    awsConnection: ${{ variables.awsServiceConnection }}
+                    region: $(AWS_REGION)
+                    stateBucket: $(TF_STATE_BUCKET)
+                    stateKey: $(TF_STATE_KEY)
