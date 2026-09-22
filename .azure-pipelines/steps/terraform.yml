@@ -1,0 +1,90 @@
+# Install a pinned Terraform, initialise the S3 backend, and either plan into
+# a file or apply a plan file produced by an earlier job.
+parameters:
+  - name: command
+    type: string
+    values:
+      - plan
+      - apply
+  - name: awsConnection
+    type: string
+  - name: region
+    type: string
+  - name: stateBucket
+    type: string
+  - name: stateKey
+    type: string
+  - name: workingDirectory
+    type: string
+    default: $(Build.SourcesDirectory)/infra/terraform
+  - name: terraformVersion
+    type: string
+    default: 1.16.2
+
+steps:
+  - bash: |
+      set -euo pipefail
+      version="${{ parameters.terraformVersion }}"
+      dir="$(Agent.ToolsDirectory)/terraform/$version"
+      if [ ! -x "$dir/terraform" ]; then
+        cd "$(Agent.TempDirectory)"
+        base="https://releases.hashicorp.com/terraform/$version"
+        curl -fsSLO "$base/terraform_${version}_linux_amd64.zip"
+        curl -fsSLO "$base/terraform_${version}_SHA256SUMS"
+        grep "terraform_${version}_linux_amd64.zip" "terraform_${version}_SHA256SUMS" | sha256sum --check -
+        mkdir -p "$dir"
+        unzip -o -q "terraform_${version}_linux_amd64.zip" -d "$dir"
+      fi
+      echo "##vso[task.prependpath]$dir"
+    displayName: Install Terraform ${{ parameters.terraformVersion }}
+
+  - task: AWSShellScript@1
+    displayName: Terraform init
+    inputs:
+      awsCredentials: ${{ parameters.awsConnection }}
+      regionName: ${{ parameters.region }}
+      scriptType: inline
+      workingDirectory: ${{ parameters.workingDirectory }}
+      inlineScript: |
+        set -euo pipefail
+        terraform init -input=false \
+          -backend-config="bucket=${{ parameters.stateBucket }}" \
+          -backend-config="key=${{ parameters.stateKey }}" \
+          -backend-config="region=${{ parameters.region }}"
+
+  - ${{ if eq(parameters.command, 'plan') }}:
+      - task: AWSShellScript@1
+        displayName: Terraform plan
+        inputs:
+          awsCredentials: ${{ parameters.awsConnection }}
+          regionName: ${{ parameters.region }}
+          scriptType: inline
+          workingDirectory: ${{ parameters.workingDirectory }}
+          inlineScript: |
+            set -euo pipefail
+            terraform plan -input=false -out=tfplan
+            terraform show -no-color tfplan > plan.txt
+
+      - publish: ${{ parameters.workingDirectory }}/tfplan
+        artifact: tfplan
+        displayName: Publish plan file
+
+      - publish: ${{ parameters.workingDirectory }}/plan.txt
+        artifact: tfplan-readable
+        displayName: Publish readable plan
+
+  - ${{ if eq(parameters.command, 'apply') }}:
+      - download: current
+        artifact: tfplan
+        displayName: Download plan file
+
+      - task: AWSShellScript@1
+        displayName: Terraform apply
+        inputs:
+          awsCredentials: ${{ parameters.awsConnection }}
+          regionName: ${{ parameters.region }}
+          scriptType: inline
+          workingDirectory: ${{ parameters.workingDirectory }}
+          inlineScript: |
+            set -euo pipefail
+            terraform apply -input=false "$(Pipeline.Workspace)/tfplan/tfplan"
