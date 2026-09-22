@@ -11,8 +11,14 @@ pr:
       - main
 
 variables:
+  - group: stockyard-aws
   - name: buildConfiguration
     value: Release
+  - name: awsServiceConnection
+    value: stockyard-aws
+  # Tags are immutable in ECR, so every image is tagged with the commit.
+  - name: imageTag
+    value: $(Build.SourceVersion)
 
 stages:
   - stage: Build
@@ -26,3 +32,39 @@ stages:
           - template: .azure-pipelines/steps/dotnet.yml
             parameters:
               configuration: $(buildConfiguration)
+
+  # Images are only built and pushed for main. Each service is its own job so
+  # the four builds and scans run side by side.
+  - stage: Package
+    displayName: Build, scan, and push images
+    dependsOn: Build
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - job: image
+        displayName: Image
+        pool:
+          vmImage: ubuntu-latest
+        strategy:
+          maxParallel: 4
+          matrix:
+            api:
+              dockerfile: src/Stockyard.Api/Dockerfile
+              repository: stockyard-api
+            projections:
+              dockerfile: src/Stockyard.Projections/Dockerfile
+              repository: stockyard-projections
+            notifier:
+              dockerfile: src/Stockyard.Notifier/Dockerfile
+              repository: stockyard-notifier
+            exporter:
+              dockerfile: src/Stockyard.Exporter/Dockerfile
+              repository: stockyard-exporter
+        steps:
+          - template: .azure-pipelines/steps/docker-ecr.yml
+            parameters:
+              dockerfile: $(dockerfile)
+              repository: $(repository)
+              tag: $(imageTag)
+              awsConnection: $(awsServiceConnection)
+              region: $(AWS_REGION)
+              registry: $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
