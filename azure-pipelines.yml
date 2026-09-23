@@ -108,3 +108,9 @@ stages:
                     region: $(AWS_REGION)
                     stateBucket: $(TF_STATE_BUCKET)
                     stateKey: $(TF_STATE_KEY)
+                - template: .azure-pipelines/steps/kubectl.yml
+                  parameters:
+                    awsConnection: ${{ variables.awsServiceConnection }}
+                    region: $(AWS_REGION)
+                    imageTag: $(imageTag)
+                    environmentName: $(TF_ENVIRONMENT)
