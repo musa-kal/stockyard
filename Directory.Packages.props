@@ -9,12 +9,17 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.13" />
   </ItemGroup>
   <ItemGroup Label="AWS">
+    <PackageVersion Include="AWSSDK.S3" Version="4.0.104.6" />
     <PackageVersion Include="AWSSDK.SQS" Version="4.0.100.20" />
   </ItemGroup>
   <ItemGroup Label="Api">
     <PackageVersion Include="AspNetCore.HealthChecks.SqlServer" Version="9.0.0" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
     <PackageVersion Include="Scalar.AspNetCore" Version="2.18.3" />
+  </ItemGroup>
+  <ItemGroup Label="Export">
+    <PackageVersion Include="Cronos" Version="0.13.0" />
+    <PackageVersion Include="Parquet.Net" Version="6.1.0" />
   </ItemGroup>
   <ItemGroup Label="Hosting">
     <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.13" />

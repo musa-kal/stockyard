@@ -23,6 +23,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Stockyard.Api", "src\Stocky
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Stockyard.Notifier", "src\Stockyard.Notifier\Stockyard.Notifier.csproj", "{4808883F-BC05-467B-9C31-1719722C2C45}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Stockyard.Exporter", "src\Stockyard.Exporter\Stockyard.Exporter.csproj", "{E97739BB-EA91-499B-BEFC-CC797AA2EA1C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -129,6 +131,18 @@ Global
 		{4808883F-BC05-467B-9C31-1719722C2C45}.Release|x64.Build.0 = Release|Any CPU
 		{4808883F-BC05-467B-9C31-1719722C2C45}.Release|x86.ActiveCfg = Release|Any CPU
 		{4808883F-BC05-467B-9C31-1719722C2C45}.Release|x86.Build.0 = Release|Any CPU
+		{E97739BB-EA91-499B-BEFC-CC797AA2EA1C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E97739BB-EA91-499B-BEFC-CC797AA2EA1C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E97739BB-EA91-499B-BEFC-CC797AA2EA1C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{E97739BB-EA91-499B-BEFC-CC797AA2EA1C}.Debug|x64.Build.0 = Debug|Any CPU
+		{E97739BB-EA91-499B-BEFC-CC797AA2EA1C}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{E97739BB-EA91-499B-BEFC-CC797AA2EA1C}.Debug|x86.Build.0 = Debug|Any CPU
+		{E97739BB-EA91-499B-BEFC-CC797AA2EA1C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E97739BB-EA91-499B-BEFC-CC797AA2EA1C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E97739BB-EA91-499B-BEFC-CC797AA2EA1C}.Release|x64.ActiveCfg = Release|Any CPU
+		{E97739BB-EA91-499B-BEFC-CC797AA2EA1C}.Release|x64.Build.0 = Release|Any CPU
+		{E97739BB-EA91-499B-BEFC-CC797AA2EA1C}.Release|x86.ActiveCfg = Release|Any CPU
+		{E97739BB-EA91-499B-BEFC-CC797AA2EA1C}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -142,5 +156,6 @@ Global
 		{4D72D6C0-40F6-4843-94B1-29864885ECE0} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{5FE2092E-4B94-4FB7-8228-E63723310863} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{4808883F-BC05-467B-9C31-1719722C2C45} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{E97739BB-EA91-499B-BEFC-CC797AA2EA1C} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal
