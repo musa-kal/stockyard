@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Stockyard.Api\Stockyard.Api.csproj" />
+    <ProjectReference Include="..\..\src\Stockyard.Exporter\Stockyard.Exporter.csproj" />
     <ProjectReference Include="..\..\src\Stockyard.Infrastructure\Stockyard.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Stockyard.Messaging\Stockyard.Messaging.csproj" />
     <ProjectReference Include="..\..\src\Stockyard.Notifier\Stockyard.Notifier.csproj" />

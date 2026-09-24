@@ -119,6 +119,21 @@ public sealed class StockApiTests(SqlServerFixture sql) : ApiTestBase(sql)
         await PostJsonAsync("/api/v1/outbox/dlq/replay?max=0", new { }, HttpStatusCode.BadRequest);
     }
 
+    [Fact]
+    public async Task AnExportCanBeRunOnDemand()
+    {
+        await StockAtSiteAsync(3);
+        var today = DateTime.UtcNow.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+
+        var result = await PostJsonAsync($"/api/v1/exports/run?date={today}", new { }, HttpStatusCode.OK);
+
+        result.GetProperty("date").GetString().ShouldBe(today);
+        result.GetProperty("movements").GetInt32().ShouldBeGreaterThan(0);
+        var files = result.GetProperty("files").EnumerateArray().Select(f => f.GetString()!).ToList();
+        files.Count.ShouldBe(2);
+        files.ShouldAllBe(f => File.Exists(f));
+    }
+
     private async Task<(string Site, string Item)> StockAtSiteAsync(decimal quantity)
     {
         var supplier = TestData.UniqueCode("S");
