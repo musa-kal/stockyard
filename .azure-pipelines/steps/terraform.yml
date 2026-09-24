@@ -17,6 +17,17 @@ parameters:
   - name: workingDirectory
     type: string
     default: $(Build.SourcesDirectory)/infra/terraform
+  # Inputs without a safe default; only the plan needs them, apply reuses the
+  # values baked into the plan file.
+  - name: environmentName
+    type: string
+    default: dev
+  - name: adminPrincipalArns
+    type: string
+    default: '[]'
+  - name: publicAccessCidrs
+    type: string
+    default: '["0.0.0.0/0"]'
   - name: terraformVersion
     type: string
     default: 1.16.2
@@ -64,6 +75,12 @@ steps:
             set -euo pipefail
             terraform plan -input=false -out=tfplan
             terraform show -no-color tfplan > plan.txt
+        # Azure DevOps upper-cases variable names when it exports them, and
+        # Terraform matches TF_VAR_ names case-sensitively, so map them here.
+        env:
+          TF_VAR_environment: ${{ parameters.environmentName }}
+          TF_VAR_cluster_admin_principal_arns: ${{ parameters.adminPrincipalArns }}
+          TF_VAR_cluster_endpoint_public_access_cidrs: ${{ parameters.publicAccessCidrs }}
 
       - publish: ${{ parameters.workingDirectory }}/tfplan
         artifact: tfplan

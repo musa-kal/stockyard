@@ -89,6 +89,9 @@ stages:
               region: $(AWS_REGION)
               stateBucket: $(TF_STATE_BUCKET)
               stateKey: $(TF_STATE_KEY)
+              environmentName: $(TF_ENVIRONMENT)
+              adminPrincipalArns: $(TF_CLUSTER_ADMIN_PRINCIPAL_ARNS)
+              publicAccessCidrs: $(TF_CLUSTER_PUBLIC_ACCESS_CIDRS)
 
       - deployment: apply
         displayName: Terraform apply and roll out
