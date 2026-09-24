@@ -1,4 +1,33 @@
 # Stockyard build and deploy pipeline.
+#
+# Stages: Build (restore, build, test) on every PR and push; Package (four
+# parallel image builds, each scanned with Trivy and pushed to ECR) and Deploy
+# (Terraform plan, then apply and roll out behind an approval) on main only.
+#
+# Set up once in the Azure DevOps project before the first run:
+#
+# Extension
+#   AWS Toolkit for Azure DevOps, which provides the AWSShellScript@1 task.
+#
+# Service connection (Project settings > Service connections)
+#   stockyard-aws   AWS connection that assumes the pipeline's IAM role. That
+#                   role must be in cluster_admin_principal_arns so the deploy
+#                   step can use kubectl.
+#
+# Variable group "stockyard-aws" (Pipelines > Library)
+#   AWS_ACCOUNT_ID                     account that owns the ECR registry
+#   AWS_REGION                         us-east-1
+#   TF_STATE_BUCKET                    S3 bucket holding Terraform state
+#   TF_STATE_KEY                       state object key, e.g. stockyard/dev.tfstate
+#   TF_ENVIRONMENT                     environment variable for Terraform, e.g. dev
+#   TF_CLUSTER_ADMIN_PRINCIPAL_ARNS    JSON list of IAM ARNs given cluster admin
+#   TF_CLUSTER_PUBLIC_ACCESS_CIDRS     JSON list of CIDRs allowed to the EKS API
+#
+# Environment (Pipelines > Environments)
+#   stockyard-aws   with an Approvals check; the apply job waits on it.
+#
+# Nothing secret lives in this file or the variable group: AWS credentials come
+# from the service connection and application secrets from Secrets Manager.
 
 trigger:
   branches:
