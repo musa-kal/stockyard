@@ -12,7 +12,8 @@ public static class Program
         builder.Logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Warning);
 
         builder.Services.AddStockyardDatabase(builder.Configuration);
-        builder.Services.AddScoped<ExportQueries>();
+        builder.Services.AddStockyardExports(builder.Configuration);
+        builder.Services.AddHostedService<ExporterService>();
 
         await builder.Build().RunAsync();
     }
