@@ -11,6 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Stockyard.Exporter\Stockyard.Exporter.csproj" />
     <ProjectReference Include="..\Stockyard.Messaging\Stockyard.Messaging.csproj" />
   </ItemGroup>
 

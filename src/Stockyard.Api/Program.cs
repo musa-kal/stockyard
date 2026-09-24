@@ -3,6 +3,7 @@ using Scalar.AspNetCore;
 using Stockyard.Api;
 using Stockyard.Api.Endpoints;
 using Stockyard.Api.Errors;
+using Stockyard.Exporter;
 using Stockyard.Infrastructure;
 using Stockyard.Messaging;
 
@@ -16,6 +17,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddStockyardDatabase(builder.Configuration);
 builder.Services.AddStockyardMessaging(builder.Configuration);
 builder.Services.AddOutboxRelay(builder.Configuration);
+builder.Services.AddStockyardExports(builder.Configuration);
 builder.Services.AddStockyardHealthChecks(builder.Configuration);
 builder.Services.AddProblemDetails();
 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));

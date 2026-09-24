@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Stockyard.Api.Contracts;
 using Stockyard.Domain;
+using Stockyard.Exporter;
 using Stockyard.Infrastructure.Outbox;
 using Stockyard.Infrastructure.Persistence;
 using Stockyard.Infrastructure.Procedures;
@@ -21,6 +22,7 @@ public static class OperationsEndpoints
         api.MapGet("/stock/reconcile", ReconcileAsync).WithTags("Stock");
         api.MapPost("/webhooks/{deliveryId:guid}/replay", ReplayWebhookAsync).WithTags("Operations");
         api.MapPost("/outbox/dlq/replay", ReplayDeadLettersAsync).WithTags("Operations");
+        api.MapPost("/exports/run", RunExportAsync).WithTags("Operations");
 
         return api;
     }
@@ -80,5 +82,17 @@ public static class OperationsEndpoints
 
         var replayed = await bus.ReplayDeadLettersAsync(limit, cancellationToken);
         return TypedResults.Ok(new DeadLetterReplayResponse(replayed));
+    }
+
+    /// <summary>Runs the exporter's reconcile and export now, for one UTC day (yesterday by default).</summary>
+    private static async Task<Ok<ExportResult>> RunExportAsync(
+        DateOnly? date,
+        NightlyJob job,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
+        var day = date ?? DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime).AddDays(-1);
+        var result = await job.RunAsync(day, cancellationToken);
+        return TypedResults.Ok(result);
     }
 }
