@@ -1,0 +1,21 @@
+version: 2
+
+# The Exporter writes one folder per UTC day:
+#   orders/<yyyy>/<MM>/<dd>/order_lines.parquet
+#   movements/<yyyy>/<MM>/<dd>/stock_movements.parquet
+# under s3://<bucket>/exports on AWS, or sample_data/ for the local target.
+# filename = true keeps the source path so staging can tell export days apart.
+sources:
+  - name: exports
+    description: Nightly Parquet exports written by the Stockyard Exporter.
+    tables:
+      - name: order_lines
+        description: One row per purchase order line, for orders posted or received on the export day.
+        meta:
+          external_location: >-
+            read_parquet('{{ "s3://" ~ env_var("STOCKYARD_EXPORT_BUCKET") ~ "/exports" if target.name == "s3" else "sample_data" }}/orders/*/*/*/order_lines.parquet', filename = true)
+      - name: stock_movements
+        description: One row per ledger movement that occurred on the export day.
+        meta:
+          external_location: >-
+            read_parquet('{{ "s3://" ~ env_var("STOCKYARD_EXPORT_BUCKET") ~ "/exports" if target.name == "s3" else "sample_data" }}/movements/*/*/*/stock_movements.parquet', filename = true)
