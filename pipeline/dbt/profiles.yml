@@ -1,0 +1,35 @@
+# Two targets over the same models:
+#   local  reads sample_data/ (written by scripts/make_sample_parquet.py)
+#   s3     reads the Exporter's bucket through the default AWS credential
+#          chain; set STOCKYARD_EXPORT_BUCKET to the export_bucket output.
+#
+# Relative file paths in DuckDB resolve against the working directory, so
+# file_search_path lists both the project folder (when dbt runs from the
+# repository root with --project-dir pipeline/dbt) and the current folder.
+#
+# The local target builds in memory unless STOCKYARD_DUCKDB_PATH names a file,
+# which keeps a run from leaving a database behind in whatever folder it
+# started in.
+stockyard:
+  target: local
+  outputs:
+    local:
+      type: duckdb
+      path: "{{ env_var('STOCKYARD_DUCKDB_PATH', ':memory:') }}"
+      threads: 4
+      settings:
+        TimeZone: UTC
+        file_search_path: "pipeline/dbt,."
+
+    s3:
+      type: duckdb
+      path: "{{ env_var('STOCKYARD_DUCKDB_PATH', 'stockyard.duckdb') }}"
+      threads: 4
+      extensions:
+        - httpfs
+      settings:
+        TimeZone: UTC
+      secrets:
+        - type: s3
+          provider: credential_chain
+          region: "{{ env_var('AWS_REGION', 'us-east-1') }}"
