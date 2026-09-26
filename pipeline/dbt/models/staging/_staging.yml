@@ -1,0 +1,54 @@
+version: 2
+
+models:
+  - name: stg_order_lines
+    description: Purchase order lines from the nightly exports, one row per order line.
+    columns:
+      - name: order_line_key
+        description: Order id and line number, the grain of the model.
+        data_tests:
+          - unique
+          - not_null
+      - name: order_id
+        data_tests:
+          - not_null
+      - name: order_number
+        data_tests:
+          - not_null
+      - name: supplier_code
+        data_tests:
+          - not_null
+      - name: job_site_code
+        data_tests:
+          - not_null
+      - name: item_sku
+        data_tests:
+          - not_null
+      - name: export_date
+        description: UTC day of the export folder the row was read from.
+        data_tests:
+          - not_null
+
+  - name: stg_stock_movements
+    description: Ledger movements from the nightly exports, one row per movement.
+    columns:
+      - name: movement_id
+        data_tests:
+          - unique
+          - not_null
+      - name: item_sku
+        data_tests:
+          - not_null
+      - name: job_site_code
+        description: WAREHOUSE for stock held off site.
+        data_tests:
+          - not_null
+      - name: kind
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["Receipt", "Issue", "Adjustment", "ReturnToSupplier"]
+      - name: occurred_at
+        data_tests:
+          - not_null
