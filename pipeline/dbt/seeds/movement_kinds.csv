@@ -1,0 +1,5 @@
+kind,kind_code,direction,description
+Receipt,1,in,Delivery received against a purchase order
+Issue,2,out,Stock issued to the work at a job site
+Adjustment,3,either,Correction after a count or damage
+ReturnToSupplier,4,out,Stock sent back to the supplier

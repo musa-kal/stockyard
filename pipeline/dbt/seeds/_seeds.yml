@@ -1,0 +1,27 @@
+version: 2
+
+seeds:
+  - name: movement_kinds
+    description: >-
+      The StockMovement.Kind values the application writes, with the direction
+      each one moves stock. Kept here because the export carries only the name.
+    config:
+      column_types:
+        kind: varchar
+        kind_code: tinyint
+        direction: varchar
+        description: varchar
+    columns:
+      - name: kind
+        data_tests:
+          - unique
+          - not_null
+      - name: kind_code
+        data_tests:
+          - unique
+          - not_null
+      - name: direction
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["in", "out", "either"]
