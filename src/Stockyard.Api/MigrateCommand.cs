@@ -32,7 +32,15 @@ internal static partial class MigrateCommand
                 var db = scope.ServiceProvider.GetRequiredService<StockyardDbContext>();
                 var pending = (await db.Database.GetPendingMigrationsAsync()).ToArray();
                 await db.Database.MigrateAsync();
-                LogApplied(logger, pending.Length, pending);
+                if (pending.Length == 0)
+                {
+                    LogUpToDate(logger);
+                }
+                else
+                {
+                    LogApplied(logger, pending.Length, pending);
+                }
+
                 return 0;
             }
             catch (SqlException ex) when (attempt < MaxAttempts)
@@ -50,6 +58,9 @@ internal static partial class MigrateCommand
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Applied {Count} migrations: {Migrations}")]
     private static partial void LogApplied(ILogger logger, int count, string[] migrations);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "The database is up to date; no migration was pending")]
+    private static partial void LogUpToDate(ILogger logger);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "SQL Server not ready (attempt {Attempt} of {MaxAttempts}): {Reason}")]
     private static partial void LogWaiting(ILogger logger, int attempt, int maxAttempts, string reason);
