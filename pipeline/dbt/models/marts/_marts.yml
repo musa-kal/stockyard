@@ -117,3 +117,26 @@ models:
         description: Null only if the application added a kind the seed does not know yet.
         data_tests:
           - not_null
+
+  - name: fct_daily_stock_balance
+    description: Closing stock per item, job site, and day from the first movement onward.
+    data_tests:
+      - unique:
+          arguments:
+            column_name: "item_sku || '|' || job_site_code || '|' || cast(date_day as varchar)"
+    columns:
+      - name: item_sku
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_item')
+                field: item_sku
+      - name: job_site_code
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_job_site')
+                field: job_site_code
+      - name: date_day
+        data_tests:
+          - not_null
