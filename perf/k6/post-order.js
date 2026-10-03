@@ -26,6 +26,15 @@ export const options = {
       gracefulRampDown: '10s',
     },
   },
+  // Targets, not results: the numbers a run has to meet to pass. Setup
+  // requests are excluded from the latency thresholds by their tag.
+  thresholds: {
+    http_req_failed: ['rate<0.01'],
+    checks: ['rate>0.99'],
+    'http_req_duration{name:create_order}': ['p(95)<300'],
+    'http_req_duration{name:add_line}': ['p(95)<300'],
+    'http_req_duration{name:post_order}': ['p(95)<500', 'p(99)<1000'],
+  },
 };
 
 function postJson(path, body, name) {
