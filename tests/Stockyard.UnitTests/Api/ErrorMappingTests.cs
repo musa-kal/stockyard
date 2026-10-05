@@ -15,6 +15,7 @@ public sealed class ErrorMappingTests
     [InlineData(ErrorNumbers.NotFound, StatusCodes.Status404NotFound)]
     [InlineData(ErrorMapping.UniqueIndexViolation, StatusCodes.Status409Conflict)]
     [InlineData(ErrorMapping.PrimaryKeyViolation, StatusCodes.Status409Conflict)]
+    [InlineData(ErrorMapping.StockLockTimeout, StatusCodes.Status503ServiceUnavailable)]
     public void MapsEveryKnownNumber(int errorNumber, int expectedStatus)
     {
         var mapped = ErrorMapping.Map(errorNumber);
@@ -26,8 +27,8 @@ public sealed class ErrorMappingTests
 
     [Theory]
     [InlineData(0)]
-    [InlineData(51000)]
     [InlineData(1205)]
+    [InlineData(547)]
     public void LeavesUnknownNumbersToTheDefaultHandler(int errorNumber)
     {
         ErrorMapping.Map(errorNumber).ShouldBeNull();

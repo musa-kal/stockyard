@@ -11,6 +11,9 @@ public static class ErrorMapping
     public const int UniqueIndexViolation = 2601;
     public const int PrimaryKeyViolation = 2627;
 
+    /// <summary>usp_IssueStock could not take its per item and site lock in time.</summary>
+    public const int StockLockTimeout = 51000;
+
     public static (int Status, string Title)? Map(int errorNumber) => errorNumber switch
     {
         ErrorNumbers.Validation => (StatusCodes.Status400BadRequest, "The request is not valid."),
@@ -20,6 +23,7 @@ public static class ErrorMapping
         ErrorNumbers.InvalidState => (StatusCodes.Status409Conflict, "The purchase order is not in a status that allows this."),
         ErrorNumbers.NotFound => (StatusCodes.Status404NotFound, "Not found."),
         UniqueIndexViolation or PrimaryKeyViolation => (StatusCodes.Status409Conflict, "A record with the same key already exists."),
+        StockLockTimeout => (StatusCodes.Status503ServiceUnavailable, "Stock is busy; retry the request."),
         _ => null,
     };
 }

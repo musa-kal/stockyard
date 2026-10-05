@@ -11,7 +11,7 @@
     Errors:      50000  the quantity is not positive or the reference is missing
                  50003  the issue would take stock on hand below zero
                  50004  the item or the job site does not exist
-                 51000  the stock lock could not be taken within 10 seconds
+                 51000  the stock lock could not be taken within 10 seconds (the api answers 503)
     Locking:     an exclusive application lock per (item, site), owned by the transaction. Two
                  issues of the same item at the same site run one after the other, so the balance
                  one of them reads cannot be spent by the other. Receipts do not take the lock:
