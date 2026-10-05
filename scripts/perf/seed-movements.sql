@@ -4,8 +4,9 @@
     Purpose:     the data set for the read-path measurement in docs/performance.md:
                  2,000 items, 20 job sites and 1,000,000 stock movements, inserted set based.
                  Each item gets 500 movements spread through the whole table (row r belongs to
-                 item r % 2000), the way a real ledger interleaves items over time, and every
-                 fifth movement is in the warehouse (null JobSiteId).
+                 item r % 2000), the way a real ledger interleaves items over time. An item's
+                 movements rotate over the warehouse (null JobSiteId) and the 20 sites, and every
+                 fourth one is an issue, so every item has a positive balance at 21 places.
     Parameters:  none. Run against a migrated database other than the everyday one.
     Result sets: none; prints the row counts.
     Errors:      none of its own. Does nothing when PERF-00001 already exists.
@@ -70,16 +71,16 @@ sites AS
 INSERT dbo.StockMovement WITH (TABLOCK) (ItemId, JobSiteId, Kind, Quantity, Reference, OccurredAt)
 SELECT
     i.Id,
-    CASE WHEN n.r % 5 = 0 THEN NULL ELSE s.Id END,
-    CASE WHEN n.r % 4 = 3 THEN 2 ELSE 1 END,          -- every fourth movement is an issue
-    CASE WHEN n.r % 4 = 3 THEN -1.000 ELSE 2.000 END,
+    s.Id,                                             -- null for the warehouse
+    CASE WHEN n.r / 2000 % 4 = 3 THEN 2 ELSE 1 END,   -- every fourth movement of an item is an issue
+    CASE WHEN n.r / 2000 % 4 = 3 THEN -1.000 ELSE 2.000 END,
     CONCAT(N'PERF-', n.r),
-    DATEADD(SECOND, -(n.r % 31536000), @now)           -- spread over the last year
+    DATEADD(SECOND, -(n.r % 31536000), @now)          -- spread over the last year
 FROM numbers AS n
 INNER JOIN items AS i
     ON i.k = n.r % 2000
-INNER JOIN sites AS s
-    ON s.k = n.r % 20;
+LEFT JOIN sites AS s
+    ON s.k + 1 = n.r / 2000 % 21;                     -- place 0 is the warehouse
 
 DECLARE @items int = (SELECT COUNT(*) FROM dbo.Item WHERE Sku LIKE N'PERF-%');
 DECLARE @movements bigint = (SELECT COUNT_BIG(*) FROM dbo.StockMovement);
