@@ -24,6 +24,21 @@ run_sql() {
     "SQLCMDPASSWORD=\"\$MSSQL_SA_PASSWORD\" /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -d $DATABASE -b -W -s '|' $variables -i /tmp/$file"
 }
 
+run_query() {
+  docker compose exec -T sqlserver bash -c \
+    "SQLCMDPASSWORD=\"\$MSSQL_SA_PASSWORD\" /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -d $DATABASE -b -W -s '|' -Q \"$1\""
+}
+
+reconcile_query="SET NOCOUNT ON;
+CREATE TABLE #r (ItemSku nvarchar(32), JobSiteCode nvarchar(16), Projected decimal(18, 3), Actual decimal(18, 3));
+DECLARE @t datetime2(7) = SYSDATETIME();
+INSERT #r EXEC dbo.usp_ReconcileStock @Apply = 1;
+SELECT 'apply' AS Run, COUNT(*) AS Differences, DATEDIFF(MILLISECOND, @t, SYSDATETIME()) AS ElapsedMs FROM #r;
+TRUNCATE TABLE #r;
+SET @t = SYSDATETIME();
+INSERT #r EXEC dbo.usp_ReconcileStock @Apply = 0;
+SELECT 'report' AS Run, COUNT(*) AS Differences, DATEDIFF(MILLISECOND, @t, SYSDATETIME()) AS ElapsedMs FROM #r;"
+
 echo "==> SQL Server and the $DATABASE database"
 docker compose up -d --wait sqlserver
 docker compose run --rm --no-deps \
@@ -41,3 +56,8 @@ for stage in $STAGES; do
   echo "==> stage: $stage"
   run_sql measure.sql "Stage=$stage" "Sku=$SKU"
 done
+
+# The first run corrects every pair (the perf data has no projection rows); the second
+# one, read only, finds nothing left. Both scan the whole ledger.
+echo "==> reconcile over the whole ledger"
+run_query "$reconcile_query"

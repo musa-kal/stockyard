@@ -21,6 +21,12 @@ function Invoke-Checked([scriptblock] $command) {
     if ($LASTEXITCODE -ne 0) { throw "command failed with exit code $LASTEXITCODE" }
 }
 
+function Invoke-SqlQuery([string] $query) {
+    $arguments = @('compose', 'exec', '-T', 'sqlserver', 'bash', '-c',
+        "SQLCMDPASSWORD=`"`$MSSQL_SA_PASSWORD`" /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -d $Database -b -W -s '|' -Q `"$query`"")
+    Invoke-Checked { docker @arguments }
+}
+
 function Invoke-SqlFile([string] $file, [string[]] $variables = @()) {
     # sqlcmd reads -v before -i; the password comes from the container's own environment.
     $setVariables = if ($variables.Count -gt 0) { '-v ' + ($variables -join ' ') } else { '' }
@@ -49,6 +55,11 @@ try {
         Write-Host "==> stage: $stage"
         Invoke-SqlFile 'measure.sql' @("Stage=$stage", "Sku=$Sku")
     }
+
+    # The first run corrects every pair (the perf data has no projection rows); the second
+    # one, read only, finds nothing left. Both scan the whole ledger.
+    Write-Host '==> reconcile over the whole ledger'
+    Invoke-SqlQuery "SET NOCOUNT ON; CREATE TABLE #r (ItemSku nvarchar(32), JobSiteCode nvarchar(16), Projected decimal(18, 3), Actual decimal(18, 3)); DECLARE @t datetime2(7) = SYSDATETIME(); INSERT #r EXEC dbo.usp_ReconcileStock @Apply = 1; SELECT 'apply' AS Run, COUNT(*) AS Differences, DATEDIFF(MILLISECOND, @t, SYSDATETIME()) AS ElapsedMs FROM #r; TRUNCATE TABLE #r; SET @t = SYSDATETIME(); INSERT #r EXEC dbo.usp_ReconcileStock @Apply = 0; SELECT 'report' AS Run, COUNT(*) AS Differences, DATEDIFF(MILLISECOND, @t, SYSDATETIME()) AS ElapsedMs FROM #r;"
 }
 finally {
     Pop-Location
