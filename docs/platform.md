@@ -72,3 +72,23 @@ terraform -chdir=infra/terraform test
 ```
 
 `.terraform.lock.hcl` is committed with hashes for linux_amd64, windows_amd64, and darwin_arm64 so the pipeline agent and a laptop resolve the same provider build.
+
+## Least privilege
+
+Each Kubernetes service account has its own IAM role (IRSA), trusted only by `system:serviceaccount:stockyard:<name>`. The table is generated from nothing; it is kept in step with `infra/terraform/modules/eks/irsa.tf` by hand, so change both together.
+
+| Service account | What the service does with AWS | Granted for the service | Granted for the CSI secret mount (ADR 0105) |
+| ----- | ----- | ----- | ----- |
+| `stockyard-api` (also runs the migrate job) | Relays outbox rows to the queue; replays the DLQ back onto it; reads the pending count for `/stock/reconcile`; writes on-demand exports | `sqs:SendMessage`, `sqs:GetQueueAttributes` on `stockyard-events`; `sqs:ReceiveMessage`, `sqs:DeleteMessage`, `sqs:GetQueueAttributes` on `stockyard-events-dlq`; `s3:PutObject` on `<bucket>/exports/*` | `secretsmanager:GetSecretValue`, `DescribeSecret` on the db secret |
+| `stockyard-projections` | Only consumer of the events queue | `sqs:ReceiveMessage`, `sqs:DeleteMessage`, `sqs:ChangeMessageVisibility`, `sqs:GetQueueAttributes` on `stockyard-events` | same, db secret |
+| `stockyard-notifier` | Signs and sends webhooks from `WebhookDelivery` rows; never reads the queue (ADR 0004) | none beyond the mounts | db secret, and `GetSecretValue`, `DescribeSecret` on the signing secret |
+| `stockyard-exporter` | Writes the nightly Parquet files; `StockReconciled` goes out through the outbox and the api relay | `s3:PutObject` on `<bucket>/exports/*` | same, db secret |
+| `amazon-cloudwatch/cloudwatch-agent` | Container Insights metrics and logs | `CloudWatchAgentServerPolicy` | none |
+
+What no workload can do: read the RDS master password secret, touch the DLQ (except the api's replay), read from the export bucket, delete anything in S3, or call any AWS API outside those listed. The nodes' own role has only the three EKS worker policies (worker node, CNI, ECR pull only).
+
+Other boundaries:
+
+* SQL Server accepts 1433 only from the EKS cluster security group, and has no public address.
+* Cluster access is through EKS access entries for the principals in `cluster_admin_principal_arns` (the pipeline role and an admin role); the cluster creator does not get implicit admin.
+* The `stockyard` namespace enforces the restricted Pod Security Standard, and a default deny NetworkPolicy leaves only port 8080 on the api pods open.
