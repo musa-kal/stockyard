@@ -129,3 +129,97 @@ kubectl kustomize deploy/k8s/overlays/aws
 | Deploy | main only | `plan`: Terraform plan into a file, published with a readable copy. `apply`: deployment job on the `stockyard-aws` environment (approval check), applies that exact plan, renders the aws overlay with the account, environment, and image tag, runs the migration Job, then rolls the Deployments | `terraform.yml`, `kubectl.yml` |
 
 The pipeline has not been run against a real Azure DevOps organisation from this repository, so there are no recorded run durations. Validating it means creating the project, the service connection, variable group, and environment listed in the header, and queuing a run on main.
+
+## Warehouse layer
+
+`pipeline/dbt` is a dbt project on the `dbt-duckdb` adapter (ADR 0104). It reads the Exporter's Parquet files straight from their folders:
+
+```
+<root>/orders/<yyyy>/<MM>/<dd>/order_lines.parquet
+<root>/movements/<yyyy>/<MM>/<dd>/stock_movements.parquet
+```
+
+where `<root>` is `s3://<export bucket>/exports` for the `s3` target and `pipeline/dbt/sample_data` for the `local` target.
+
+| Layer | Models | Notes |
+| ----- | ----- | ----- |
+| Sources | `exports.order_lines`, `exports.stock_movements` | `read_parquet` over the day folders with `filename = true` |
+| Staging (views) | `stg_order_lines`, `stg_stock_movements` | Upper-cased codes, UTC timestamps, export day from the folder path; an order line exported on several days keeps its latest export |
+| Seed | `movement_kinds` | Kind name, the code the application stores, and the direction stock should move |
+| Marts (tables) | `dim_item`, `dim_supplier`, `dim_job_site`, `dim_date`, `fct_purchase_order_lines`, `fct_stock_movements`, `fct_daily_stock_balance` | Star schema keyed on the natural codes the API uses |
+
+```mermaid
+erDiagram
+    dim_supplier ||--o{ fct_purchase_order_lines : "supplier_code"
+    dim_job_site ||--o{ fct_purchase_order_lines : "job_site_code"
+    dim_item ||--o{ fct_purchase_order_lines : "item_sku"
+    dim_date ||--o{ fct_purchase_order_lines : "posted_on"
+    dim_job_site ||--o{ fct_stock_movements : "job_site_code"
+    dim_item ||--o{ fct_stock_movements : "item_sku"
+    dim_date ||--o{ fct_stock_movements : "occurred_on"
+    movement_kinds ||--o{ fct_stock_movements : "kind"
+    dim_item ||--o{ fct_daily_stock_balance : "item_sku"
+    dim_job_site ||--o{ fct_daily_stock_balance : "job_site_code"
+    dim_date ||--o{ fct_daily_stock_balance : "date_day"
+
+    fct_purchase_order_lines {
+        varchar order_line_key PK
+        varchar order_number
+        int line_number
+        double quantity_ordered
+        double quantity_received
+        double quantity_outstanding
+        double unit_cost
+        double line_total
+    }
+    fct_stock_movements {
+        bigint movement_id PK
+        varchar kind
+        tinyint kind_code
+        double quantity
+        varchar reference
+        timestamp occurred_at
+    }
+    fct_daily_stock_balance {
+        varchar item_sku
+        varchar job_site_code
+        date date_day
+        double net_quantity
+        double closing_quantity
+    }
+    dim_item {
+        varchar item_sku PK
+    }
+    dim_supplier {
+        varchar supplier_code PK
+    }
+    dim_job_site {
+        varchar job_site_code PK
+        boolean is_warehouse
+    }
+    dim_date {
+        date date_day PK
+    }
+    movement_kinds {
+        varchar kind PK
+        tinyint kind_code
+        varchar direction
+    }
+```
+
+Tests: `unique` and `not_null` on every key, `relationships` from each fact to its dimensions, `accepted_values` on movement kinds and directions, the generic `non_negative` test (`tests/generic/non_negative.sql`) on quantities and costs, and singular tests that check line totals equal quantity times cost, ledger receipts reconcile with received quantities, and no site closes a day with negative stock.
+
+Build it locally against two generated days:
+
+```
+py -3.13 -m venv pipeline/dbt/.venv
+pipeline/dbt/.venv/Scripts/pip install -r pipeline/dbt/requirements.txt
+pipeline/dbt/.venv/Scripts/python pipeline/dbt/scripts/make_sample_parquet.py
+pipeline/dbt/.venv/Scripts/dbt build --project-dir pipeline/dbt --profiles-dir pipeline/dbt
+```
+
+(`bin/` instead of `Scripts/` outside Windows.) Against the bucket, with AWS credentials in the environment:
+
+```
+STOCKYARD_EXPORT_BUCKET=<export_bucket output> pipeline/dbt/.venv/bin/dbt build --project-dir pipeline/dbt --profiles-dir pipeline/dbt --target s3
+```
