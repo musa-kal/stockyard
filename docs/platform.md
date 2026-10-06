@@ -75,7 +75,7 @@ terraform -chdir=infra/terraform test
 
 ## Least privilege
 
-Each Kubernetes service account has its own IAM role (IRSA), trusted only by `system:serviceaccount:stockyard:<name>`. The table is generated from nothing; it is kept in step with `infra/terraform/modules/eks/irsa.tf` by hand, so change both together.
+Each Kubernetes service account has its own IAM role (IRSA), trusted only by `system:serviceaccount:stockyard:<name>`. The table is kept in step with `infra/terraform/modules/eks/irsa.tf` by hand, so change both together.
 
 | Service account | What the service does with AWS | Granted for the service | Granted for the CSI secret mount (ADR 0105) |
 | ----- | ----- | ----- | ----- |
@@ -92,3 +92,40 @@ Other boundaries:
 * SQL Server accepts 1433 only from the EKS cluster security group, and has no public address.
 * Cluster access is through EKS access entries for the principals in `cluster_admin_principal_arns` (the pipeline role and an admin role); the cluster creator does not get implicit admin.
 * The `stockyard` namespace enforces the restricted Pod Security Standard, and a default deny NetworkPolicy leaves only port 8080 on the api pods open.
+
+## Kubernetes
+
+`deploy/k8s` is plain manifests with kustomize: a base and two overlays.
+
+| Layer | Contents |
+| ----- | ----- |
+| `base` | Namespace `stockyard` (restricted Pod Security, enforce, audit, and warn); the `stockyard-config` ConfigMap generated from `config.env`; one ServiceAccount and Deployment per image (`stockyard-api`, `stockyard-projections`, `stockyard-notifier`, `stockyard-exporter`); the api Service, HPA (CPU 70 %, 2 to 6 pods), and PodDisruptionBudget (one pod always up); the `stockyard-migrate` Job; NetworkPolicies |
+| `overlays/local` | Docker Desktop or kind. Images tagged `local`, plain Secrets with the compose values, LocalStack and SQL Server reached through `host.docker.internal`, LocalStack credentials, one api pod |
+| `overlays/aws` | EKS. ECR image names, IRSA role annotations, one SecretProviderClass per secret, CSI volumes mounted so the Secrets sync, `aws.env` with the real queue URLs and export destination (rendered from Terraform outputs at deploy time) |
+
+Every pod runs as the image's non-root `app` user (UID 1654) with `runAsNonRoot`, the `RuntimeDefault` seccomp profile, no privilege escalation, all capabilities dropped, and a read-only root filesystem with an `emptyDir` at `/tmp`. Service account tokens are not mounted; IRSA injects its own projected token. Every container has requests and limits.
+
+The api has a liveness probe on `/healthz` (no dependencies, so a database outage never restarts it) and a readiness probe on `/readyz` (checks SQL Server). The workers listen on nothing and have no probes. The exporter uses the `Recreate` strategy so a rollout never runs two schedulers at 02:00 UTC.
+
+Configuration reaches the containers with `envFrom`: the ConfigMap `stockyard-config` and the Secrets `stockyard-db` (`ConnectionStrings__Stockyard`) and, for the notifier, `stockyard-signing` (`Notifier__SigningSecret`). On AWS those Secrets are created by the Secrets Store CSI driver from Secrets Manager when a pod mounts its SecretProviderClass; locally they are plain Secrets. `Messaging__ServiceUrl` and `Exporter__ServiceUrl` point at LocalStack in the local overlay and are empty on AWS, where the SDK uses the regional endpoints.
+
+Migrations run as the Job `stockyard-migrate`: the api image with `args: ["migrate"]` under the api's service account. A Job's pod template is immutable, so a deploy deletes the previous Job, applies the new one, waits for it to complete, and only then rolls the Deployments.
+
+Render either overlay without a cluster:
+
+```
+kubectl kustomize deploy/k8s/overlays/local
+kubectl kustomize deploy/k8s/overlays/aws
+```
+
+## Pipeline
+
+`azure-pipelines.yml` with step templates in `.azure-pipelines/steps/`. Its header lists the extension, service connection, variable group entries, and environment it needs.
+
+| Stage | Runs on | Jobs | Template |
+| ----- | ----- | ----- | ----- |
+| Build | every PR and push to main | Restore (NuGet cache keyed on `Directory.Packages.props`), build with `-warnaserror`, test on Microsoft.Testing.Platform with the xunit TRX report, publish results | `dotnet.yml` |
+| Package | main only | Four matrix jobs in parallel, one per image: `docker build` from the repository root, Trivy scan failing on fixable HIGH or CRITICAL, push to ECR tagged with the commit SHA | `docker-ecr.yml` |
+| Deploy | main only | `plan`: Terraform plan into a file, published with a readable copy. `apply`: deployment job on the `stockyard-aws` environment (approval check), applies that exact plan, renders the aws overlay with the account, environment, and image tag, runs the migration Job, then rolls the Deployments | `terraform.yml`, `kubectl.yml` |
+
+The pipeline has not been run against a real Azure DevOps organisation from this repository, so there are no recorded run durations. Validating it means creating the project, the service connection, variable group, and environment listed in the header, and queuing a run on main.
