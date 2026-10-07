@@ -118,3 +118,59 @@ RDS owns the master password (`manage_master_user_password`), so rotation happen
    ```
 
    `/readyz` takes api pods out of the Service while they cannot reach the database, so the gap shows up as 503s, not wrong answers. Do it outside the 02:00 UTC export.
+
+## Replay the DLQ
+
+The `<project>-<env>-dlq-not-empty` alarm fires when a message has failed five receives on `stockyard-events`. Only the projections worker consumes that queue, so the cause is almost always there.
+
+1. See what is waiting and why:
+
+   ```
+   cd infra/terraform
+   aws sqs get-queue-attributes --queue-url "$(terraform output -raw dlq_url)" \
+     --attribute-names ApproximateNumberOfMessages
+   kubectl logs deployment/stockyard-projections --namespace stockyard --since=1h
+   ```
+
+2. Fix the cause first (a bad deploy, a database outage, a payload the consumer cannot read). Replaying into a consumer that still fails only sends the messages back to the DLQ five receives later.
+
+3. Replay through the api, which moves each message back onto `stockyard-events` with its `type` attribute and deletes it from the DLQ:
+
+   ```
+   kubectl port-forward --namespace stockyard service/stockyard-api 8080:80
+   curl -fsS -X POST http://localhost:8080/api/v1/outbox/dlq/replay
+   ```
+
+   Replaying is safe to repeat: the consumer records each message id in `ProcessedMessage` in the same transaction as the change, so a message that had in fact been applied is acknowledged and skipped.
+
+4. Watch the alarm return to OK and `GET /api/v1/stock/reconcile` report no differences.
+
+SQS can also move the messages itself (`aws sqs start-message-move-task --source-arn <dlq arn>`); the DLQ's redrive allow policy only permits `stockyard-events` as the destination. The api route is preferred because it is the one the integration tests cover.
+
+## Roll back
+
+Images are tagged with the commit SHA and the tags are immutable, so every earlier build is still in ECR (the newest 20 per repository).
+
+* Application only, fastest: undo the last rollout of the affected Deployments.
+
+  ```
+  kubectl rollout undo deployment/stockyard-api --namespace stockyard
+  kubectl rollout status deployment/stockyard-api --namespace stockyard
+  ```
+
+  The next pipeline run puts the newer image back, so follow up with a revert commit on main.
+
+* Through the pipeline: revert the commit on main, or re-run the Deploy stage of the last good run. The plan for infrastructure that has not changed is empty and the rollout applies the older tag.
+
+* Database: migrations only move forward. If a release added a migration, the older image must still work against the newer schema (additive migrations keep that true). If a migration damaged data, restore to a new instance from the point in time just before the deploy and switch the connection string to it:
+
+  ```
+  aws rds restore-db-instance-to-point-in-time \
+    --source-db-instance-identifier stockyard-dev-sql \
+    --target-db-instance-identifier stockyard-dev-sql-restore \
+    --restore-time <UTC timestamp before the deploy>
+  ```
+
+  The restored instance is outside Terraform until it is imported or the original is replaced; note what was done in the incident record.
+
+* Infrastructure: revert the Terraform change and let the pipeline plan and apply it. Do not edit state by hand to get out of a bad apply.
