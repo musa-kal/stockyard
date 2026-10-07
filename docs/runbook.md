@@ -174,3 +174,58 @@ Images are tagged with the commit SHA and the tags are immutable, so every earli
   The restored instance is outside Terraform until it is imported or the original is replaced; note what was done in the incident record.
 
 * Infrastructure: revert the Terraform change and let the pipeline plan and apply it. Do not edit state by hand to get out of a bad apply.
+
+## Tear down
+
+The fixed cost is roughly 0.28 USD an hour at list price (see the cost table in [platform.md](platform.md#cost)), so the stack comes down when it is not in use. Order matters: workloads first so nothing writes while storage is being emptied, then the guards that stop Terraform, then Terraform.
+
+1. Stop the workloads and release the CSI mounts and synced Secrets:
+
+   ```
+   kubectl delete namespace stockyard --wait=true
+   ```
+
+2. Lift deletion protection on the database: set `db_deletion_protection = false` in `dev.tfvars`, then
+
+   ```
+   cd infra/terraform
+   terraform apply -var-file=dev.tfvars
+   ```
+
+3. Empty what Terraform will not delete while it holds data. The bucket and the repositories are created without `force_destroy`, deliberately:
+
+   ```
+   aws s3 rm "s3://$(terraform output -raw export_bucket)" --recursive
+   for repo in stockyard-api stockyard-projections stockyard-notifier stockyard-exporter; do
+     ids="$(aws ecr list-images --repository-name "$repo" --query 'imageIds[*]' --output json)"
+     [ "$ids" = "[]" ] || aws ecr batch-delete-image --repository-name "$repo" --image-ids "$ids"
+   done
+   ```
+
+   Copy anything you want to keep (exports for dbt, a last image) before this step.
+
+4. Destroy:
+
+   ```
+   terraform destroy -var-file=dev.tfvars
+   ```
+
+   RDS takes a final snapshot named `stockyard-dev-sql-final` on the way out. EKS deletes the node group before the cluster, and the add-ons and access entries go with it.
+
+5. Clean up what outlives the destroy:
+
+   * The final DB snapshot, once you are sure you do not need it: `aws rds delete-db-snapshot --db-snapshot-identifier stockyard-dev-sql-final`.
+   * The two Secrets Manager secrets sit in their recovery window (7 days by default). To create the stack again under the same names sooner, delete them for good: `aws secretsmanager delete-secret --secret-id stockyard/dev/db --force-delete-without-recovery` (and `stockyard/dev/signing`).
+   * Log groups created outside Terraform, if any appeared: `aws logs describe-log-groups --log-group-name-prefix /aws/eks/stockyard-dev` and `--log-group-name-prefix /aws/containerinsights/stockyard-dev`.
+   * The state bucket. Keep it if the stack will come back; it costs pennies. Delete it last, after `terraform destroy` has finished writing state.
+
+## What costs money while it exists
+
+| While | What keeps billing | Roughly |
+| ----- | ----- | ----- |
+| The stack is up, idle or not | EKS control plane, two t3.medium nodes and their volumes, the NAT gateway and its public IPv4 address, the RDS instance and its storage, three secrets, four alarms | about 211 USD a month at list price, from the cost table |
+| The stack is up and busy | Add NAT data processing, CloudWatch log ingestion and storage, SQS requests past the free million, S3 requests, Secrets Manager API calls | usage based, not estimated |
+| After `terraform destroy` | The final DB snapshot, the state bucket, any log groups left behind, and secrets until their recovery window ends | small, but the snapshot grows with the database; delete it when done |
+| Never left running | The pipeline itself on Microsoft-hosted agents, within the free monthly minutes of the organisation | depends on the organisation's plan |
+
+Check the result rather than trusting the list: Cost Explorer filtered on the `Project = stockyard` tag a day after teardown should show nothing but snapshot and S3 storage.
