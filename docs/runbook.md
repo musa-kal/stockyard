@@ -72,3 +72,49 @@ Tools on the operator's machine: AWS CLI v2, Terraform 1.10 or later, kubectl, H
    ```
 
    A pod stuck in `ContainerCreating` with a `FailedMount` event almost always means its role cannot read the secret it mounts, or the secret has no value yet (step 6).
+
+## Rotate the signing secret
+
+The signature header carries no key id, so for the length of the swap a supplier checking with the old key rejects webhooks signed with the new one. Failed deliveries are retried (doubling from 1 s up to a 10 minute cap, 8 attempts), so a swap that finishes within a few minutes loses nothing.
+
+1. Generate the new key and agree a time with the suppliers that verify signatures.
+2. Write it:
+
+   ```
+   cd infra/terraform
+   aws secretsmanager put-secret-value --secret-id "$(terraform output -raw signing_secret_name)" \
+     --secret-string "$(jq -cn --arg s "$(openssl rand -hex 32)" '{Notifier__SigningSecret: $s}')"
+   ```
+
+3. The CSI driver refreshes the synced `stockyard-signing` Secret on its rotation poll, but the notifier reads environment variables only at start, so restart it:
+
+   ```
+   kubectl rollout restart deployment/stockyard-notifier --namespace stockyard
+   kubectl rollout status deployment/stockyard-notifier --namespace stockyard
+   ```
+
+4. Hand the new key to the suppliers. Deliveries that failed in between show `LastStatusCode` 401 or similar on their `WebhookDelivery` row; any that ran out of attempts can be sent again with `POST /api/v1/webhooks/{deliveryId}/replay`.
+
+## Rotate the master password
+
+RDS owns the master password (`manage_master_user_password`), so rotation happens in Secrets Manager and the application secret has to follow it.
+
+1. Rotate:
+
+   ```
+   cd infra/terraform
+   aws secretsmanager rotate-secret --secret-id "$(terraform output -raw db_master_user_secret_arn)"
+   ```
+
+   From here new connections with the old password fail; pods already connected keep their pooled connections until they recycle.
+
+2. Rebuild the connection string from the new password, exactly as in step 6 of the first deploy (the `host`, `password`, and `put-secret-value` lines for `db_secret_name`).
+
+3. Restart everything that holds a connection string, migrate job included on the next deploy:
+
+   ```
+   kubectl rollout restart deployment --namespace stockyard
+   kubectl rollout status deployment/stockyard-api --namespace stockyard
+   ```
+
+   `/readyz` takes api pods out of the Service while they cannot reach the database, so the gap shows up as 503s, not wrong answers. Do it outside the 02:00 UTC export.
