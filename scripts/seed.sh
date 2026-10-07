@@ -15,6 +15,12 @@ post() {
   esac
 }
 
+# Right after "docker compose up" the api may still be waiting for the migration.
+for _ in $(seq 1 120); do
+  [ "$(curl -s -o /dev/null -w '%{http_code}' "$API/readyz")" = "200" ] && break
+  sleep 0.5
+done
+
 post /api/v1/suppliers '{"code":"NGPS","name":"Northgate Pipe Supply","webhookUrl":"http://fake-supplier:8090/webhooks"}'
 post /api/v1/suppliers '{"code":"HLV","name":"Harbourline Valves","webhookUrl":"http://fake-supplier:8090/webhooks"}'
 post /api/v1/suppliers '{"code":"KCF","name":"Keel and Co. Fittings"}'

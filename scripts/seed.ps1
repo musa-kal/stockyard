@@ -18,6 +18,13 @@ function Post([string] $path, [hashtable] $body) {
     }
 }
 
+# Right after "docker compose up" the api may still be waiting for the migration.
+foreach ($attempt in 1..120) {
+    $ready = try { (Invoke-WebRequest "$Api/readyz" -SkipHttpErrorCheck).StatusCode -eq 200 } catch { $false }
+    if ($ready) { break }
+    Start-Sleep -Milliseconds 500
+}
+
 Post '/api/v1/suppliers' @{ code = 'NGPS'; name = 'Northgate Pipe Supply'; webhookUrl = 'http://fake-supplier:8090/webhooks' }
 Post '/api/v1/suppliers' @{ code = 'HLV'; name = 'Harbourline Valves'; webhookUrl = 'http://fake-supplier:8090/webhooks' }
 Post '/api/v1/suppliers' @{ code = 'KCF'; name = 'Keel and Co. Fittings' }
