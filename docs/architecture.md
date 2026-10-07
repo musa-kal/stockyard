@@ -165,6 +165,7 @@ Environment variables use `__` for nesting.
 
 | What fails | What happens |
 | --- | --- |
+| SQL Server is not up yet | `migrate` retries the connection every 3 s for about a minute before giving up; the services wait for it to finish. `/readyz` fails while SQL Server is unreachable, `/healthz` does not. |
 | The api crashes after a procedure commits | The change, the outbox row and the webhook row are all committed; the relay and the notifier pick them up on the next poll. |
 | SQS is unreachable | The relay records the error on the row (`Attempts`, `LastError`), stops the batch, and tries again on the next poll. Orders, receipts and issues keep working; `GET /stock/reconcile` reports the unpublished count. |
 | The relay crashes between send and commit | The rows are sent again; the projections guard drops the duplicates. |
@@ -173,5 +174,5 @@ Environment variables use `__` for nesting.
 | A supplier endpoint is down | The delivery is retried after 1 s, 2 s, 4 s, ... capped at 10 minutes, for 8 attempts, then left with `LastError`. `POST /webhooks/{id}/replay` queues it again. |
 | A notifier dies holding a lease | The rows reappear when the lease (`Notifier__Lease`) expires and another replica sends them. |
 | Two issues race for the last units | `usp_IssueStock` serialises them on an application lock per item and site; the loser gets 409 (50003). `IssueStockTests.ConcurrentIssuesNeverOverdraw` runs twelve at once. If the lock is not granted in 10 s the api answers 503. |
-| The projection drifts from the ledger | The nightly reconcile corrects it in its own transaction and writes `StockReconciled`. Pairs with events still in flight are skipped ([ADR 0005](decisions/0005-reconcile-corrects-in-the-procedure.md)). |
+| The projection drifts from the ledger | The nightly reconcile corrects it in its own transaction and writes `StockReconciled`. Pairs with events still in flight are skipped ([ADR 0005](decisions/0005-reconcile-corrects-in-the-procedure.md)). On the one million movement perf ledger the correcting run took under a second ([performance](performance.md#the-reconcile-on-the-same-ledger)). |
 | The export destination is unavailable | The run logs the error; the reconcile part has already committed. The next scheduled run exports the following day, so a missed day is re-run with `POST /exports/run?date=`. |
