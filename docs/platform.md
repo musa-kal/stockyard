@@ -223,3 +223,28 @@ pipeline/dbt/.venv/Scripts/dbt build --project-dir pipeline/dbt --profiles-dir p
 ```
 STOCKYARD_EXPORT_BUCKET=<export_bucket output> pipeline/dbt/.venv/bin/dbt build --project-dir pipeline/dbt --profiles-dir pipeline/dbt --target s3
 ```
+
+## Cost
+
+On-demand list prices for us-east-1, looked up on 2026-10-24 from the AWS Price List offer files (the machine-readable source behind the pricing pages; each offer file's own publication date is in the source column). Monthly figures use 730 hours and the defaults in `variables.tf`. Nothing here was measured from a bill: no deployment has been run from this repository yet, so the real figure is "measured after deployment" from Cost Explorer (`aws ce get-cost-and-usage` filtered on the `Project = stockyard` tag).
+
+| Item | Quantity at the defaults | List price | Per month | Source |
+| ----- | ----- | ----- | ----- | ----- |
+| EKS control plane | 1 cluster, standard support | 0.10 USD per cluster hour | 73.00 | AmazonEKS offer, published 2026-09-28: https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEKS/current/us-east-1/index.json (page: https://aws.amazon.com/eks/pricing/) |
+| EC2 nodes | 2 x t3.medium, Linux | 0.0416 USD per instance hour | 60.74 | EC2 on-demand data behind https://aws.amazon.com/ec2/pricing/on-demand/, published 2026-10-23: https://b0.p.awsstatic.com/pricing/2.0/meteredUnitMaps/ec2/USD/current/ec2-ondemand-without-sec-sel/US%20East%20(N.%20Virginia)/Linux/index.json |
+| EBS for node root volumes | 2 x 30 GiB gp3 | 0.08 USD per GB-month | 4.80 | AmazonEC2 offer, published 2026-10-23: https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEC2/current/us-east-1/index.csv (page: https://aws.amazon.com/ebs/pricing/) |
+| NAT gateway | 1 gateway | 0.045 USD per hour, plus 0.045 USD per GB processed | 32.85 plus traffic | AmazonEC2 offer as above (page: https://aws.amazon.com/vpc/pricing/) |
+| Public IPv4 address | 1 (the NAT gateway's Elastic IP) | 0.005 USD per hour | 3.65 | AmazonVPC offer, published 2026-10-16: https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonVPC/current/us-east-1/index.json |
+| RDS SQL Server Express | 1 x db.t3.small, single-AZ, license included | 0.044 USD per instance hour | 32.12 | AmazonRDS offer, published 2026-10-20: https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonRDS/current/us-east-1/index.json (page: https://aws.amazon.com/rds/sqlserver/pricing/) |
+| RDS storage | 20 GiB gp3 | 0.115 USD per GB-month | 2.30 | AmazonRDS offer as above |
+| Secrets Manager | 3 secrets (db, signing, and the RDS managed master password) | 0.40 USD per secret-month, 0.05 USD per 10,000 API calls | 1.20 plus calls | AWSSecretsManager offer, published 2026-09-11: https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AWSSecretsManager/current/us-east-1/index.json |
+| CloudWatch alarms | 4 standard resolution alarms | 0.10 USD per alarm-month | 0.40 | AmazonCloudWatch offer, published 2026-10-07: https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonCloudWatch/current/us-east-1/index.json |
+| CloudWatch Logs | control plane and container logs | 0.50 USD per GB ingested, 0.03 USD per GB-month stored | usage | AmazonCloudWatch offer as above |
+| SQS | standard queue requests | first 1,000,000 requests a month free, then 0.40 USD per million | usage | AWSQueueService offer, published 2026-09-11: https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AWSQueueService/current/us-east-1/index.json |
+| S3 exports | Parquet files, a few MB a day | 0.023 USD per GB-month, 0.005 USD per 1,000 PUT requests | usage | AmazonS3 offer, published 2026-10-15: https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonS3/current/us-east-1/index.json |
+| ECR storage | up to 20 images per repository | 0.10 USD per GB-month | usage | AmazonECR offer, published 2026-09-11: https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonECR/current/us-east-1/index.json |
+| Container Insights (EKS add-on) | per observation | not retrieved | not retrieved | check https://aws.amazon.com/cloudwatch/pricing/ (Container Insights section) |
+| EC2 T3 unlimited CPU credits | only when nodes run above baseline | not retrieved | not retrieved | check https://aws.amazon.com/ec2/pricing/on-demand/ (T2/T3/T4g unlimited mode) |
+| Data transfer out to the internet | webhook calls to suppliers | not retrieved | not retrieved | check https://aws.amazon.com/ec2/pricing/on-demand/ (data transfer) |
+
+The fixed part, everything billed by the hour or the month whether or not a request is served, comes to about 211.06 USD a month, or about 0.28 USD an hour of which 0.10 is the EKS control plane, 0.083 the two nodes, 0.05 the NAT gateway and its address, and 0.044 the database. That is why the stack is torn down between uses ([runbook.md](runbook.md#tear-down)). The usage-based rows are small at this project's volume but were not estimated.
