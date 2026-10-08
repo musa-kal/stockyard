@@ -145,7 +145,7 @@ The `<project>-<env>-dlq-not-empty` alarm fires when a message has failed five r
 
 4. Watch the alarm return to OK and `GET /api/v1/stock/reconcile` report no differences.
 
-SQS can also move the messages itself (`aws sqs start-message-move-task --source-arn <dlq arn>`); the DLQ's redrive allow policy only permits `stockyard-events` as the destination. The api route is preferred because it is the one the integration tests cover.
+SQS can also move the messages itself (`aws sqs start-message-move-task --source-arn <dlq arn>`); the DLQ's redrive allow policy only permits `stockyard-events` as the destination. The api route is preferred because it puts the `type` attribute back exactly as the outbox relay set it and logs each replayed message.
 
 ## Roll back
 
@@ -226,6 +226,6 @@ The fixed cost is roughly 0.28 USD an hour at list price (see the cost table in 
 | The stack is up, idle or not | EKS control plane, two t3.medium nodes and their volumes, the NAT gateway and its public IPv4 address, the RDS instance and its storage, three secrets, four alarms | about 211 USD a month at list price, from the cost table |
 | The stack is up and busy | Add NAT data processing, CloudWatch log ingestion and storage, SQS requests past the free million, S3 requests, Secrets Manager API calls | usage based, not estimated |
 | After `terraform destroy` | The final DB snapshot, the state bucket, any log groups left behind, and secrets until their recovery window ends | small, but the snapshot grows with the database; delete it when done |
-| Never left running | The pipeline itself on Microsoft-hosted agents, within the free monthly minutes of the organisation | depends on the organisation's plan |
+| Regardless of AWS | Pipeline runs on Microsoft-hosted agents | billed by Azure DevOps under the organisation's plan, not by AWS |
 
 Check the result rather than trusting the list: Cost Explorer filtered on the `Project = stockyard` tag a day after teardown should show nothing but snapshot and S3 storage.
