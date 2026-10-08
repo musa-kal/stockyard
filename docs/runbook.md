@@ -145,7 +145,7 @@ The `<project>-<env>-dlq-not-empty` alarm fires when a message has failed five r
 
 4. Watch the alarm return to OK and `GET /api/v1/stock/reconcile` report no differences.
 
-SQS can also move the messages itself (`aws sqs start-message-move-task --source-arn <dlq arn>`); the DLQ's redrive allow policy only permits `stockyard-events` as the destination. The api route is preferred because it puts the `type` attribute back exactly as the outbox relay set it and logs each replayed message.
+SQS can also move the messages itself (`aws sqs start-message-move-task --source-arn <dlq arn>`); the DLQ's redrive allow policy only permits `stockyard-events` as the destination. The api route is preferred because it keeps the `type` message attribute the consumer dispatches on.
 
 ## Roll back
 
