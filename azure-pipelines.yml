@@ -64,9 +64,10 @@ stages:
 
       # Everything on the platform side that can be checked without an AWS
       # account: Terraform formatting, validation, and mocked-provider tests,
-      # and both kustomize overlays rendering.
+      # both kustomize overlays rendering, and the dbt project building and
+      # testing against generated sample exports.
       - job: platform
-        displayName: Terraform and manifest checks
+        displayName: Terraform, manifest, and warehouse checks
         pool:
           vmImage: ubuntu-latest
         steps:
@@ -79,6 +80,19 @@ stages:
               kubectl kustomize deploy/k8s/overlays/local > /dev/null
               kubectl kustomize deploy/k8s/overlays/aws > /dev/null
             displayName: Render kustomize overlays
+
+          - task: UsePythonVersion@0
+            displayName: Use Python 3.13
+            inputs:
+              versionSpec: '3.13'
+
+          - bash: |
+              set -euo pipefail
+              python -m venv pipeline/dbt/.venv
+              pipeline/dbt/.venv/bin/pip install --quiet -r pipeline/dbt/requirements.txt
+              pipeline/dbt/.venv/bin/python pipeline/dbt/scripts/make_sample_parquet.py
+              pipeline/dbt/.venv/bin/dbt build --project-dir pipeline/dbt --profiles-dir pipeline/dbt
+            displayName: dbt build against sample exports
 
   # Images are only built and pushed for main. Each service is its own job so
   # the four builds and scans run side by side.
