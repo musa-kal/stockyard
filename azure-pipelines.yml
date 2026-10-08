@@ -62,6 +62,24 @@ stages:
             parameters:
               configuration: $(buildConfiguration)
 
+      # Everything on the platform side that can be checked without an AWS
+      # account: Terraform formatting, validation, and mocked-provider tests,
+      # and both kustomize overlays rendering.
+      - job: platform
+        displayName: Terraform and manifest checks
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - template: .azure-pipelines/steps/terraform.yml
+            parameters:
+              command: validate
+
+          - bash: |
+              set -euo pipefail
+              kubectl kustomize deploy/k8s/overlays/local > /dev/null
+              kubectl kustomize deploy/k8s/overlays/aws > /dev/null
+            displayName: Render kustomize overlays
+
   # Images are only built and pushed for main. Each service is its own job so
   # the four builds and scans run side by side.
   - stage: Package

@@ -1,19 +1,25 @@
-# Install a pinned Terraform, initialise the S3 backend, and either plan into
-# a file or apply a plan file produced by an earlier job.
+# Install a pinned Terraform, then either check the configuration offline
+# (validate: no AWS access, no backend), or initialise the S3 backend and plan
+# into a file, or apply a plan file produced by an earlier job.
 parameters:
   - name: command
     type: string
     values:
+      - validate
       - plan
       - apply
   - name: awsConnection
     type: string
+    default: ''
   - name: region
     type: string
+    default: us-east-1
   - name: stateBucket
     type: string
+    default: ''
   - name: stateKey
     type: string
+    default: ''
   - name: workingDirectory
     type: string
     default: $(Build.SourcesDirectory)/infra/terraform
@@ -49,19 +55,30 @@ steps:
       echo "##vso[task.prependpath]$dir"
     displayName: Install Terraform ${{ parameters.terraformVersion }}
 
-  - task: AWSShellScript@1
-    displayName: Terraform init
-    inputs:
-      awsCredentials: ${{ parameters.awsConnection }}
-      regionName: ${{ parameters.region }}
-      scriptType: inline
-      workingDirectory: ${{ parameters.workingDirectory }}
-      inlineScript: |
-        set -euo pipefail
-        terraform init -input=false \
-          -backend-config="bucket=${{ parameters.stateBucket }}" \
-          -backend-config="key=${{ parameters.stateKey }}" \
-          -backend-config="region=${{ parameters.region }}"
+  - ${{ if eq(parameters.command, 'validate') }}:
+      - bash: |
+          set -euo pipefail
+          terraform fmt -check -recursive
+          terraform init -backend=false -input=false
+          terraform validate
+          terraform test
+        displayName: Terraform fmt, validate, and test
+        workingDirectory: ${{ parameters.workingDirectory }}
+
+  - ${{ if ne(parameters.command, 'validate') }}:
+      - task: AWSShellScript@1
+        displayName: Terraform init
+        inputs:
+          awsCredentials: ${{ parameters.awsConnection }}
+          regionName: ${{ parameters.region }}
+          scriptType: inline
+          workingDirectory: ${{ parameters.workingDirectory }}
+          inlineScript: |
+            set -euo pipefail
+            terraform init -input=false \
+              -backend-config="bucket=${{ parameters.stateBucket }}" \
+              -backend-config="key=${{ parameters.stateKey }}" \
+              -backend-config="region=${{ parameters.region }}"
 
   - ${{ if eq(parameters.command, 'plan') }}:
       - task: AWSShellScript@1
