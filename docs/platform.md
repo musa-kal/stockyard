@@ -125,6 +125,7 @@ kubectl kustomize deploy/k8s/overlays/aws
 | Stage | Runs on | Jobs | Template |
 | ----- | ----- | ----- | ----- |
 | Build | every PR and push to main | Restore (NuGet cache keyed on `Directory.Packages.props`), build with `-warnaserror`, test on Microsoft.Testing.Platform with the xunit TRX report, publish results | `dotnet.yml` |
+| Build | every PR and push to main | Platform checks in a parallel job: `terraform fmt -check`, `init -backend=false`, `validate`, and `test`; both kustomize overlays rendered; `dbt build` against freshly generated sample exports | `terraform.yml` (validate) |
 | Package | main only | Four matrix jobs in parallel, one per image: `docker build` from the repository root, Trivy scan failing on fixable HIGH or CRITICAL, push to ECR tagged with the commit SHA | `docker-ecr.yml` |
 | Deploy | main only | `plan`: Terraform plan into a file, published with a readable copy. `apply`: deployment job on the `stockyard-aws` environment (approval check), applies that exact plan, renders the aws overlay with the account, environment, and image tag, runs the migration Job, then rolls the Deployments | `terraform.yml`, `kubectl.yml` |
 

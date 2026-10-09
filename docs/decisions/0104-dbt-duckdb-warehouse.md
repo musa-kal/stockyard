@@ -24,4 +24,4 @@ Why:
 
 * The warehouse is a DuckDB file built by whoever runs dbt, not a shared service. Sharing results means publishing that file or the mart tables (for example back to S3 as Parquet), which is not built yet.
 * Every run rescans all export days. At this data volume that is fine; with years of exports the sources would need to read only new folders, or the facts would become incremental models.
-* dbt does not run in the Azure pipeline yet; it is run by hand after the nightly export.
+* The pipeline's Build stage builds and tests the models against generated sample exports on every change. Running them against the real bucket is still done by hand after the nightly export; scheduling it is future work.
