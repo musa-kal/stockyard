@@ -80,7 +80,22 @@ steps:
         kubectl delete job stockyard-migrate --namespace stockyard --ignore-not-found --wait=true
 
         kubectl apply -f "$manifests" --selector 'app.kubernetes.io/component notin (api,worker)'
-        kubectl wait job/stockyard-migrate --namespace stockyard --for=condition=complete --timeout=600s
+
+        # kubectl wait on "complete" alone sits out the whole timeout when the
+        # job fails, so poll for either outcome and show the log on failure.
+        migrated=false
+        for attempt in $(seq 1 120); do
+          succeeded="$(kubectl get job stockyard-migrate --namespace stockyard -o jsonpath='{.status.succeeded}')"
+          failed="$(kubectl get job stockyard-migrate --namespace stockyard -o jsonpath='{.status.conditions[?(@.type=="Failed")].status}')"
+          if [ "${succeeded:-0}" -ge 1 ]; then migrated=true; break; fi
+          if [ "$failed" = "True" ]; then break; fi
+          sleep 5
+        done
+        if [ "$migrated" != true ]; then
+          echo "##vso[task.logissue type=error]stockyard-migrate did not complete"
+          kubectl logs job/stockyard-migrate --namespace stockyard --tail=200 || true
+          exit 1
+        fi
 
         kubectl apply -f "$manifests"
         for deployment in stockyard-api stockyard-projections stockyard-notifier stockyard-exporter; do
