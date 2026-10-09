@@ -225,6 +225,10 @@ pipeline/dbt/.venv/Scripts/dbt build --project-dir pipeline/dbt --profiles-dir p
 STOCKYARD_EXPORT_BUCKET=<export_bucket output> pipeline/dbt/.venv/bin/dbt build --project-dir pipeline/dbt --profiles-dir pipeline/dbt --target s3
 ```
 
+## Load tests
+
+`perf/k6` holds two k6 scripts run through the `grafana/k6` image: `post-order.js` drives the write path (create an order, add a line, post it with an `Idempotency-Key`) and `stock-on-hand.js` the read path over `dbo.vw_StockOnHand`. Each carries its pass thresholds; [perf/k6/README.md](../perf/k6/README.md) has the load shapes and how to point them at the compose stack or at EKS through a port forward. No run against a deployed stack is recorded here, so there are no latency figures for AWS yet: take them with the commands in that README after a deployment.
+
 ## Cost
 
 On-demand list prices for us-east-1, looked up on 2026-10-24 from the AWS Price List offer files (the machine-readable source behind the pricing pages; each offer file's own publication date is in the source column). Monthly figures use 730 hours and the defaults in `variables.tf`. Nothing here was measured from a bill: no deployment has been run from this repository yet, so the real figure is "measured after deployment" from Cost Explorer (`aws ce get-cost-and-usage` filtered on the `Project = stockyard` tag).
