@@ -174,7 +174,7 @@ def main() -> None:
         movements_table = stock_movements(args.start, day_index, next_id)
         next_id += movements_table.num_rows
         movements = write(movements_table, args.out, "movements", day, "stock_movements")
-        print(f"{day}: {lines.relative_to(args.out)}, {movements.relative_to(args.out)}")
+        print(f"{day}: {lines.relative_to(args.out).as_posix()}, {movements.relative_to(args.out).as_posix()}")
 
 
 if __name__ == "__main__":
