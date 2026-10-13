@@ -20,6 +20,7 @@ pipeline/dbt/target/
 pipeline/dbt/logs/
 pipeline/dbt/sample_data/
 pipeline/dbt/dbt_packages/
+pipeline/dbt/.user.yml
 *.duckdb
 *.duckdb.wal
 
