@@ -4,7 +4,7 @@
 // delivery row in one transaction), so this is the endpoint whose latency the
 // thresholds care about.
 //
-//   docker run --rm -i -e BASE_URL=http://host.docker.internal:8080 grafana/k6 run - < perf/k6/post-order.js
+//   docker run --rm -i -e BASE_URL=http://host.docker.internal:8080 -e RATE=5 -e DURATION=20s grafana/k6 run - < perf/k6/post-order.js
 
 import http from 'k6/http';
 import { check, fail } from 'k6';
@@ -13,17 +13,18 @@ import exec from 'k6/execution';
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
+const RATE = Number(__ENV.RATE || 5);
+const DURATION = __ENV.DURATION || '1m';
+
 export const options = {
   scenarios: {
     post_orders: {
-      executor: 'ramping-vus',
-      startVUs: 1,
-      stages: [
-        { duration: '30s', target: 10 },
-        { duration: '1m', target: 10 },
-        { duration: '15s', target: 0 },
-      ],
-      gracefulRampDown: '10s',
+      executor: 'constant-arrival-rate',
+      rate: RATE,
+      timeUnit: '1s',
+      duration: DURATION,
+      preAllocatedVUs: 10,
+      maxVUs: 50,
     },
   },
   // Targets, not results: the numbers a run has to meet to pass. Setup

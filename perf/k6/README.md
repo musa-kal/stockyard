@@ -4,7 +4,7 @@ Two k6 scripts, run with the `grafana/k6` image so nothing is installed locally.
 
 | Script | What it drives | Load shape | Pass thresholds |
 | ----- | ----- | ----- | ----- |
-| `post-order.js` | `POST /purchase-orders`, `POST /purchase-orders/{id}/lines`, `POST /purchase-orders/{id}/post` with a unique `Idempotency-Key` | ramp to 10 VUs over 30 s, hold 1 min, ramp down | errors under 1 %, checks over 99 %, p95 create and add line under 300 ms, p95 post under 500 ms, p99 post under 1 s |
+| `post-order.js` | `POST /purchase-orders`, `POST /purchase-orders/{id}/lines`, `POST /purchase-orders/{id}/post` with a unique `Idempotency-Key` | constant 5 orders per second for 1 min (`RATE` and `DURATION` override) | errors under 1 %, checks over 99 %, p95 create and add line under 300 ms, p95 post under 500 ms, p99 post under 1 s |
 | `stock-on-hand.js` | `GET /stock/on-hand?itemSku=&jobSiteCode=` (reads `dbo.vw_StockOnHand`) | constant 50 requests per second for 1 min (`RATE` overrides) | errors under 1 %, checks over 99 %, p95 under 200 ms, p99 under 400 ms, no dropped iterations |
 
 Both scripts create their own supplier, item, and job site in `setup()` with codes derived from the run start time, so repeated runs do not collide and every code stays inside the API limits (16 characters for codes, 32 for SKUs). The request bodies use the API's field names exactly: `supplierCode`, `jobSiteCode`, `itemSku`, `quantityOrdered`, `unitCost`, and so on.
