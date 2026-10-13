@@ -1,0 +1,139 @@
+# Local stack: SQL Server, LocalStack (SQS and S3), the migration job, the four services and the
+# fake supplier. Copy .env.example to .env first; the values there are local placeholders only.
+name: stockyard
+
+x-stockyard-environment: &stockyard-environment
+  ConnectionStrings__Stockyard: "Server=sqlserver,1433;Database=Stockyard;User Id=sa;Password=${MSSQL_SA_PASSWORD:?set MSSQL_SA_PASSWORD in .env};TrustServerCertificate=True"
+  Messaging__Provider: Sqs
+  Messaging__QueueUrl: http://localstack:4566/000000000000/stockyard-events
+  Messaging__DlqUrl: http://localstack:4566/000000000000/stockyard-events-dlq
+  Messaging__ServiceUrl: http://localstack:4566
+  Outbox__PollInterval: "00:00:01"
+  Outbox__BatchSize: "50"
+  Notifier__SigningSecret: ${WEBHOOK_SIGNING_SECRET:?set WEBHOOK_SIGNING_SECRET in .env}
+  Notifier__PollInterval: "00:00:01"
+  Notifier__BatchSize: "20"
+  Notifier__Lease: "00:01:00"
+  Notifier__RequestTimeout: "00:00:10"
+  Exporter__Destination: s3://stockyard-exports/exports
+  Exporter__Cron: "0 2 * * *"
+  Exporter__ServiceUrl: http://localstack:4566
+  AWS_REGION: us-east-1
+  AWS_ACCESS_KEY_ID: test
+  AWS_SECRET_ACCESS_KEY: test
+  ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+  DOTNET_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?set MSSQL_SA_PASSWORD in .env}
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqldata:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -Q \"SELECT 1\" -b -o /dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+
+  localstack:
+    # Pinned: later tags ask for an auth token and never run the init hook.
+    image: localstack/localstack:4.14
+    environment:
+      SERVICES: sqs,s3
+      AWS_DEFAULT_REGION: us-east-1
+    ports:
+      - "4566:4566"
+    volumes:
+      - ./scripts/localstack/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "awslocal sqs get-queue-url --queue-name stockyard-events > /dev/null && awslocal s3api head-bucket --bucket stockyard-exports"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  # The api image with "migrate" as its args: applies migrations, then exits.
+  migrate:
+    image: stockyard-api
+    build:
+      context: .
+      dockerfile: src/Stockyard.Api/Dockerfile
+    command: ["migrate"]
+    environment: *stockyard-environment
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    image: stockyard-api
+    build:
+      context: .
+      dockerfile: src/Stockyard.Api/Dockerfile
+    environment: *stockyard-environment
+    ports:
+      - "8080:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      localstack:
+        condition: service_healthy
+    restart: unless-stopped
+
+  projections:
+    image: stockyard-projections
+    build:
+      context: .
+      dockerfile: src/Stockyard.Projections/Dockerfile
+    environment: *stockyard-environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      localstack:
+        condition: service_healthy
+    restart: unless-stopped
+
+  notifier:
+    image: stockyard-notifier
+    build:
+      context: .
+      dockerfile: src/Stockyard.Notifier/Dockerfile
+    environment: *stockyard-environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  exporter:
+    image: stockyard-exporter
+    build:
+      context: .
+      dockerfile: src/Stockyard.Exporter/Dockerfile
+    environment: *stockyard-environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      localstack:
+        condition: service_healthy
+    restart: unless-stopped
+
+  fake-supplier:
+    image: stockyard-fake-supplier
+    build:
+      context: .
+      dockerfile: tools/FakeSupplier/Dockerfile
+    environment:
+      SigningSecret: ${WEBHOOK_SIGNING_SECRET:?set WEBHOOK_SIGNING_SECRET in .env}
+    ports:
+      - "8090:8090"
+    restart: unless-stopped
+
+volumes:
+  sqldata:

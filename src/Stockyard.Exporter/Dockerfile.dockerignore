@@ -1,0 +1,14 @@
+# Build context is the repository root; keep local build output and unrelated trees out of it.
+**/bin/
+**/obj/
+**/.vs/
+**/TestResults/
+.git/
+.config/
+docs/
+tests/
+infra/
+deploy/
+pipeline/
+perf/
+scripts/
