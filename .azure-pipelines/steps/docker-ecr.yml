@@ -1,0 +1,55 @@
+# Build one service image, scan it with Trivy, and push it to ECR.
+#
+# The image is built with the repository root as the context, as every
+# Dockerfile expects. The scan fails the job on fixable HIGH or CRITICAL
+# findings before anything is pushed.
+parameters:
+  - name: dockerfile
+    type: string
+  - name: repository
+    type: string
+  - name: tag
+    type: string
+  - name: awsConnection
+    type: string
+  - name: region
+    type: string
+  - name: registry
+    type: string
+  - name: trivyVersion
+    type: string
+    default: 0.74.0
+
+steps:
+  - script: >-
+      docker build
+      --file ${{ parameters.dockerfile }}
+      --tag ${{ parameters.registry }}/${{ parameters.repository }}:${{ parameters.tag }}
+      --label org.opencontainers.image.revision=$(Build.SourceVersion)
+      .
+    displayName: Build ${{ parameters.repository }}
+
+  - script: >-
+      docker run --rm
+      --volume /var/run/docker.sock:/var/run/docker.sock
+      --volume $(Agent.TempDirectory)/trivy-cache:/root/.cache/trivy
+      aquasec/trivy:${{ parameters.trivyVersion }}
+      image
+      --exit-code 1
+      --severity HIGH,CRITICAL
+      --ignore-unfixed
+      --no-progress
+      ${{ parameters.registry }}/${{ parameters.repository }}:${{ parameters.tag }}
+    displayName: Scan ${{ parameters.repository }} with Trivy
+
+  - task: AWSShellScript@1
+    displayName: Push ${{ parameters.repository }} to ECR
+    inputs:
+      awsCredentials: ${{ parameters.awsConnection }}
+      regionName: ${{ parameters.region }}
+      scriptType: inline
+      inlineScript: |
+        set -euo pipefail
+        aws ecr get-login-password --region "${{ parameters.region }}" \
+          | docker login --username AWS --password-stdin "${{ parameters.registry }}"
+        docker push "${{ parameters.registry }}/${{ parameters.repository }}:${{ parameters.tag }}"

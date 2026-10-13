@@ -1,0 +1,46 @@
+# Restore, build with warnings as errors, and test the solution.
+parameters:
+  - name: configuration
+    type: string
+    default: Release
+
+steps:
+  - task: UseDotNet@2
+    displayName: Install .NET SDK from global.json
+    inputs:
+      packageType: sdk
+      useGlobalJson: true
+
+  # Package versions are pinned centrally in Directory.Packages.props, so that
+  # file is the cache key.
+  - task: Cache@2
+    displayName: Cache NuGet packages
+    inputs:
+      key: 'nuget | "$(Agent.OS)" | Directory.Packages.props'
+      restoreKeys: |
+        nuget | "$(Agent.OS)"
+      path: $(Pipeline.Workspace)/.nuget/packages
+
+  - script: dotnet restore
+    displayName: Restore
+    env:
+      NUGET_PACKAGES: $(Pipeline.Workspace)/.nuget/packages
+
+  - script: dotnet build --no-restore --configuration ${{ parameters.configuration }} -warnaserror
+    displayName: Build
+
+  # The test projects run on Microsoft.Testing.Platform (see global.json), so
+  # the VSTest --logger flags do not apply; the xunit TRX report does the same
+  # job. Integration tests start SQL Server and LocalStack with Testcontainers,
+  # which works on the hosted ubuntu agents because they ship with Docker.
+  - script: dotnet test --no-build --configuration ${{ parameters.configuration }} --report-xunit-trx --results-directory "$(Agent.TempDirectory)/TestResults"
+    displayName: Test
+
+  - task: PublishTestResults@2
+    displayName: Publish test results
+    condition: succeededOrFailed()
+    inputs:
+      testResultsFormat: VSTest
+      testResultsFiles: '**/*.trx'
+      searchFolder: $(Agent.TempDirectory)/TestResults
+      failTaskOnFailedTests: true

@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stockyard-exporter
+  labels:
+    app.kubernetes.io/name: stockyard-exporter
+    app.kubernetes.io/component: worker
+spec:
+  # Runs the nightly reconcile and Parquet export on Exporter__Cron.
+  replicas: 1
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: stockyard-exporter
+  # A rolling update briefly runs the old and new pod side by side; if that
+  # overlaps 02:00 UTC both would reconcile and export the same day.
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: stockyard-exporter
+        app.kubernetes.io/component: worker
+    spec:
+      serviceAccountName: stockyard-exporter
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1654
+        runAsGroup: 1654
+        fsGroup: 1654
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: exporter
+          image: stockyard-exporter
+          envFrom:
+            - configMapRef:
+                name: stockyard-config
+            - secretRef:
+                name: stockyard-db
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 192Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi

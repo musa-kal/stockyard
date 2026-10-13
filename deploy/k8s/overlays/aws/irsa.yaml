@@ -1,0 +1,30 @@
+# One IAM role per service account (infra/terraform/modules/eks/irsa.tf). The
+# role names follow <project>-<environment>-<service>; the deploy step swaps
+# the placeholder account ID for the real one.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: stockyard-api
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/stockyard-dev-api
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: stockyard-projections
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/stockyard-dev-projections
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: stockyard-notifier
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/stockyard-dev-notifier
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: stockyard-exporter
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/stockyard-dev-exporter

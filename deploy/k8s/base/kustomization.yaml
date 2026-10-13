@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: stockyard
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: stockyard
+    includeSelectors: false
+
+resources:
+  - namespace.yaml
+  - api-serviceaccount.yaml
+  - api-deployment.yaml
+  - api-service.yaml
+  - api-hpa.yaml
+  - api-pdb.yaml
+  - projections-serviceaccount.yaml
+  - projections-deployment.yaml
+  - notifier-serviceaccount.yaml
+  - notifier-deployment.yaml
+  - exporter-serviceaccount.yaml
+  - exporter-deployment.yaml
+  - migrate-job.yaml
+  - networkpolicy.yaml
+
+# Every non-secret setting the services read. Overlays merge in the endpoints
+# (queue URLs, export destination, LocalStack service URLs) for their target.
+configMapGenerator:
+  - name: stockyard-config
+    envs:
+      - config.env

@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stockyard-notifier
+  labels:
+    app.kubernetes.io/name: stockyard-notifier
+    app.kubernetes.io/component: worker
+spec:
+  # Deliveries are claimed with a lease, so a second replica would only
+  # split the work; one is enough for webhook volume.
+  replicas: 1
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: stockyard-notifier
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: stockyard-notifier
+        app.kubernetes.io/component: worker
+    spec:
+      serviceAccountName: stockyard-notifier
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1654
+        runAsGroup: 1654
+        fsGroup: 1654
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: notifier
+          image: stockyard-notifier
+          envFrom:
+            - configMapRef:
+                name: stockyard-config
+            - secretRef:
+                name: stockyard-db
+            - secretRef:
+                name: stockyard-signing
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 192Mi
+            limits:
+              cpu: 500m
+              memory: 384Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi

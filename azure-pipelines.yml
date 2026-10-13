@@ -1,0 +1,180 @@
+# Stockyard build and deploy pipeline.
+#
+# Stages: Build (restore, build, test) on every PR and push; Package (four
+# parallel image builds, each scanned with Trivy and pushed to ECR) and Deploy
+# (Terraform plan, then apply and roll out behind an approval) on main only.
+#
+# Set up once in the Azure DevOps project before the first run:
+#
+# Extension
+#   AWS Toolkit for Azure DevOps, which provides the AWSShellScript@1 task.
+#
+# Service connection (Project settings > Service connections)
+#   stockyard-aws   AWS connection that assumes the pipeline's IAM role. That
+#                   role must be in cluster_admin_principal_arns so the deploy
+#                   step can use kubectl.
+#
+# Variable group "stockyard-aws" (Pipelines > Library)
+#   AWS_ACCOUNT_ID                     account that owns the ECR registry
+#   AWS_REGION                         us-east-1
+#   TF_STATE_BUCKET                    S3 bucket holding Terraform state
+#   TF_STATE_KEY                       state object key, e.g. stockyard/dev.tfstate
+#   TF_ENVIRONMENT                     environment variable for Terraform, e.g. dev
+#   TF_CLUSTER_ADMIN_PRINCIPAL_ARNS    JSON list of IAM ARNs given cluster admin
+#   TF_CLUSTER_PUBLIC_ACCESS_CIDRS     JSON list of CIDRs allowed to the EKS API
+#
+# Environment (Pipelines > Environments)
+#   stockyard-aws   with an Approvals check; the apply job waits on it.
+#
+# Nothing secret lives in this file or the variable group: AWS credentials come
+# from the service connection and application secrets from Secrets Manager.
+
+trigger:
+  branches:
+    include:
+      - main
+
+pr:
+  branches:
+    include:
+      - main
+
+variables:
+  - group: stockyard-aws
+  - name: buildConfiguration
+    value: Release
+  - name: awsServiceConnection
+    value: stockyard-aws
+  # Tags are immutable in ECR, so every image is tagged with the commit.
+  - name: imageTag
+    value: $(Build.SourceVersion)
+
+stages:
+  - stage: Build
+    displayName: Build and test
+    jobs:
+      - job: dotnet
+        displayName: .NET build and test
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - template: .azure-pipelines/steps/dotnet.yml
+            parameters:
+              configuration: $(buildConfiguration)
+
+      # Everything on the platform side that can be checked without an AWS
+      # account: Terraform formatting, validation, and mocked-provider tests,
+      # both kustomize overlays rendering, and the dbt project building and
+      # testing against generated sample exports.
+      - job: platform
+        displayName: Terraform, manifest, and warehouse checks
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - template: .azure-pipelines/steps/terraform.yml
+            parameters:
+              command: validate
+
+          - bash: |
+              set -euo pipefail
+              kubectl kustomize deploy/k8s/overlays/local > /dev/null
+              kubectl kustomize deploy/k8s/overlays/aws > /dev/null
+            displayName: Render kustomize overlays
+
+          - task: UsePythonVersion@0
+            displayName: Use Python 3.13
+            inputs:
+              versionSpec: '3.13'
+
+          - bash: |
+              set -euo pipefail
+              python -m venv pipeline/dbt/.venv
+              pipeline/dbt/.venv/bin/pip install --quiet -r pipeline/dbt/requirements.txt
+              pipeline/dbt/.venv/bin/python pipeline/dbt/scripts/make_sample_parquet.py
+              pipeline/dbt/.venv/bin/dbt build --project-dir pipeline/dbt --profiles-dir pipeline/dbt
+            displayName: dbt build against sample exports
+
+  # Images are only built and pushed for main. Each service is its own job so
+  # the four builds and scans run side by side.
+  - stage: Package
+    displayName: Build, scan, and push images
+    dependsOn: Build
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - job: image
+        displayName: Image
+        pool:
+          vmImage: ubuntu-latest
+        strategy:
+          maxParallel: 4
+          matrix:
+            api:
+              dockerfile: src/Stockyard.Api/Dockerfile
+              repository: stockyard-api
+            projections:
+              dockerfile: src/Stockyard.Projections/Dockerfile
+              repository: stockyard-projections
+            notifier:
+              dockerfile: src/Stockyard.Notifier/Dockerfile
+              repository: stockyard-notifier
+            exporter:
+              dockerfile: src/Stockyard.Exporter/Dockerfile
+              repository: stockyard-exporter
+        steps:
+          - template: .azure-pipelines/steps/docker-ecr.yml
+            parameters:
+              dockerfile: $(dockerfile)
+              repository: $(repository)
+              tag: $(imageTag)
+              awsConnection: ${{ variables.awsServiceConnection }}
+              region: $(AWS_REGION)
+              registry: $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
+
+  # Plan runs unattended; Apply is a deployment job against the stockyard-aws
+  # environment, whose approval check holds it until someone has read the
+  # published plan.
+  - stage: Deploy
+    displayName: Plan and apply
+    dependsOn: Package
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - job: plan
+        displayName: Terraform plan
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - template: .azure-pipelines/steps/terraform.yml
+            parameters:
+              command: plan
+              awsConnection: ${{ variables.awsServiceConnection }}
+              region: $(AWS_REGION)
+              stateBucket: $(TF_STATE_BUCKET)
+              stateKey: $(TF_STATE_KEY)
+              environmentName: $(TF_ENVIRONMENT)
+              adminPrincipalArns: $(TF_CLUSTER_ADMIN_PRINCIPAL_ARNS)
+              publicAccessCidrs: $(TF_CLUSTER_PUBLIC_ACCESS_CIDRS)
+
+      - deployment: apply
+        displayName: Terraform apply and roll out
+        dependsOn: plan
+        pool:
+          vmImage: ubuntu-latest
+        environment: stockyard-aws
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                - template: .azure-pipelines/steps/terraform.yml
+                  parameters:
+                    command: apply
+                    awsConnection: ${{ variables.awsServiceConnection }}
+                    region: $(AWS_REGION)
+                    stateBucket: $(TF_STATE_BUCKET)
+                    stateKey: $(TF_STATE_KEY)
+                - template: .azure-pipelines/steps/kubectl.yml
+                  parameters:
+                    awsConnection: ${{ variables.awsServiceConnection }}
+                    region: $(AWS_REGION)
+                    imageTag: $(imageTag)
+                    environmentName: $(TF_ENVIRONMENT)

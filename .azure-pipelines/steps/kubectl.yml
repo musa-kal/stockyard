@@ -1,0 +1,103 @@
+# Render the aws overlay for this build and roll it out to EKS.
+#
+# Order matters: everything except the long-running workloads goes first
+# (namespace, config, secret provider classes, services, and the migrate job),
+# the migration has to complete, and only then do the deployments roll.
+parameters:
+  - name: awsConnection
+    type: string
+  - name: region
+    type: string
+  - name: imageTag
+    type: string
+  - name: environmentName
+    type: string
+  - name: terraformDirectory
+    type: string
+    default: $(Build.SourcesDirectory)/infra/terraform
+  - name: overlayDirectory
+    type: string
+    default: $(Build.SourcesDirectory)/deploy/k8s/overlays
+
+steps:
+  - task: AWSShellScript@1
+    displayName: Render manifests for this build
+    inputs:
+      awsCredentials: ${{ parameters.awsConnection }}
+      regionName: ${{ parameters.region }}
+      scriptType: inline
+      inlineScript: |
+        set -euo pipefail
+        tf() { terraform -chdir="${{ parameters.terraformDirectory }}" "$@"; }
+        overlays="${{ parameters.overlayDirectory }}"
+        account="$(tf output -raw account_id)"
+        env_name="${{ parameters.environmentName }}"
+
+        tf output -raw k8s_aws_env > "$overlays/aws/aws.env"
+
+        # The committed overlay carries a placeholder account and the dev
+        # environment name in role ARNs and secret names.
+        grep -rl '123456789012' "$overlays/aws" | xargs sed -i "s/123456789012/$account/g"
+        sed -i "s#stockyard/dev/#stockyard/$env_name/#g" "$overlays"/aws/secretproviderclass-*.yaml
+        sed -i "s#role/stockyard-dev-#role/stockyard-$env_name-#g" "$overlays/aws/irsa.yaml"
+
+        mkdir -p "$overlays/release"
+        cat > "$overlays/release/kustomization.yaml" <<YAML
+        apiVersion: kustomize.config.k8s.io/v1beta1
+        kind: Kustomization
+        resources:
+          - ../aws
+        images:
+          - name: stockyard-api
+            newTag: "${{ parameters.imageTag }}"
+          - name: stockyard-projections
+            newTag: "${{ parameters.imageTag }}"
+          - name: stockyard-notifier
+            newTag: "${{ parameters.imageTag }}"
+          - name: stockyard-exporter
+            newTag: "${{ parameters.imageTag }}"
+        YAML
+
+        kubectl kustomize "$overlays/release" > "$(Agent.TempDirectory)/stockyard.yaml"
+
+  - publish: $(Agent.TempDirectory)/stockyard.yaml
+    artifact: manifests
+    displayName: Publish rendered manifests
+
+  - task: AWSShellScript@1
+    displayName: Migrate and roll out
+    inputs:
+      awsCredentials: ${{ parameters.awsConnection }}
+      regionName: ${{ parameters.region }}
+      scriptType: inline
+      inlineScript: |
+        set -euo pipefail
+        cluster="$(terraform -chdir="${{ parameters.terraformDirectory }}" output -raw cluster_name)"
+        aws eks update-kubeconfig --name "$cluster" --region "${{ parameters.region }}"
+        manifests="$(Agent.TempDirectory)/stockyard.yaml"
+
+        # A Job's pod template cannot change, so the previous run goes first.
+        kubectl delete job stockyard-migrate --namespace stockyard --ignore-not-found --wait=true
+
+        kubectl apply -f "$manifests" --selector 'app.kubernetes.io/component notin (api,worker)'
+
+        # kubectl wait on "complete" alone sits out the whole timeout when the
+        # job fails, so poll for either outcome and show the log on failure.
+        migrated=false
+        for attempt in $(seq 1 120); do
+          succeeded="$(kubectl get job stockyard-migrate --namespace stockyard -o jsonpath='{.status.succeeded}')"
+          failed="$(kubectl get job stockyard-migrate --namespace stockyard -o jsonpath='{.status.conditions[?(@.type=="Failed")].status}')"
+          if [ "${succeeded:-0}" -ge 1 ]; then migrated=true; break; fi
+          if [ "$failed" = "True" ]; then break; fi
+          sleep 5
+        done
+        if [ "$migrated" != true ]; then
+          echo "##vso[task.logissue type=error]stockyard-migrate did not complete"
+          kubectl logs job/stockyard-migrate --namespace stockyard --tail=200 || true
+          exit 1
+        fi
+
+        kubectl apply -f "$manifests"
+        for deployment in stockyard-api stockyard-projections stockyard-notifier stockyard-exporter; do
+          kubectl rollout status "deployment/$deployment" --namespace stockyard --timeout=300s
+        done
