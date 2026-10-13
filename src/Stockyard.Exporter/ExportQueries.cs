@@ -7,14 +7,22 @@ namespace Stockyard.Exporter;
 /// <summary>Reads one UTC day of posted order lines and ledger movements.</summary>
 public sealed class ExportQueries(StockyardDbContext db)
 {
-    /// <summary>Lines of orders posted during the day.</summary>
+    /// <summary>
+    /// Lines of orders posted during the day, and of orders that received stock during the day, so
+    /// the warehouse sees each change to QuantityReceived. A later export of an order supersedes
+    /// the earlier one.
+    /// </summary>
     public async Task<List<OrderLineRecord>> OrderLinesAsync(DateOnly day, CancellationToken cancellationToken)
     {
         var (from, to) = Range(day);
         var rows = await db.PurchaseOrderLines
             .AsNoTracking()
             .Join(db.PurchaseOrders, l => l.PurchaseOrderId, o => o.Id, (l, o) => new { Line = l, Order = o })
-            .Where(x => x.Order.PostedAt >= from && x.Order.PostedAt < to)
+            .Where(x => (x.Order.PostedAt >= from && x.Order.PostedAt < to)
+                || db.StockMovements.Any(m => m.Kind == MovementKind.Receipt
+                    && m.Reference == x.Order.Number
+                    && m.OccurredAt >= from
+                    && m.OccurredAt < to))
             .OrderBy(x => x.Order.Number)
             .ThenBy(x => x.Line.LineNumber)
             .Select(x => new

@@ -1,5 +1,6 @@
 using Amazon.S3;
 using Amazon.S3.Model;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Parquet;
 using Parquet.Serialization;
@@ -51,6 +52,21 @@ public sealed class NightlyJobTests(SqlServerFixture sql, LocalStackFixture loca
         movement.JobSiteCode.ShouldBe(JobSite.WarehouseCode);
         movement.Kind.ShouldBe("Receipt");
         movement.Quantity.ShouldBe(6d);
+    }
+
+    [Fact]
+    public async Task AnOrderPostedOnAnEarlierDayIsExportedAgainOnTheDayItReceivesStock()
+    {
+        var (order, _) = await ReceivedOrderAsync();
+        DateTime? postedEarlier = DateTime.UtcNow.AddDays(-3);
+
+        await using var db = sql.CreateDbContext();
+        await db.PurchaseOrders
+            .Where(o => o.Id == order.Id)
+            .ExecuteUpdateAsync(s => s.SetProperty(o => o.PostedAt, postedEarlier), Ct);
+        var lines = await new ExportQueries(db).OrderLinesAsync(Today, Ct);
+
+        lines.Single(l => l.OrderNumber == order.Number).QuantityReceived.ShouldBe(6d);
     }
 
     [Fact]

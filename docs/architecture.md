@@ -17,7 +17,7 @@ neither.
 | `Stockyard.Api` | ASP.NET Core minimal API, port 8080 | Master data, purchase orders, receipts, stock issues, reads, operations endpoints. Hosts the outbox relay. `dotnet Stockyard.Api.dll migrate` applies the migrations and exits. | SQL Server; SQS queue attributes (pending count) | SQL Server (EF Core and the procedures); SQS `stockyard-events` (relay); S3 export prefix (on-demand export); moves DLQ messages back on request |
 | `Stockyard.Projections` | Worker | The only consumer of `stockyard-events`. Applies `DeliveryReceived` and `StockIssued` to `StockOnHand` behind the `ProcessedMessage` guard. | SQS `stockyard-events` | SQL Server (`ProcessedMessage`, `StockOnHand`) |
 | `Stockyard.Notifier` | Worker | Claims due `WebhookDelivery` rows with a lease, signs and posts them, retries with backoff. | SQL Server | SQL Server (delivery outcomes); supplier webhook URLs |
-| `Stockyard.Exporter` | Worker | On `Exporter__Cron` runs the reconcile, then writes the previous UTC day as Parquet. The api runs the same job on demand. | SQL Server | SQL Server (corrections, `StockReconciled` outbox row); S3 or a folder |
+| `Stockyard.Exporter` | Worker | On `Exporter__Cron` runs the reconcile, then writes the previous UTC day as Parquet: the lines of orders posted or received that day, and that day's movements. The api runs the same job on demand. | SQL Server | SQL Server (corrections, `StockReconciled` outbox row); S3 or a folder |
 | `tools/FakeSupplier` | ASP.NET Core, port 8090, compose only | Receives webhooks, verifies the signature from the documented format, lists them at `GET /received`. | | memory |
 
 Shared libraries: `Stockyard.Domain` (entities, rules, event payloads, webhook signature and retry
