@@ -118,6 +118,14 @@ Every error is RFC 9457 Problem Details with an `errorNumber`. The full contract
 document at `/openapi/v1.json`, browsable at `/scalar/v1` when `ASPNETCORE_ENVIRONMENT` is
 `Development` (the default in `.env.example`).
 
+![Scalar API reference served by the compose stack at localhost:8080/scalar/v1, open on POST /api/v1/purchase-orders/{id}/post: the id path parameter, the Idempotency-Key header, and the 200 response body with the order number, status and lines.](docs/images/scalar-api.png)
+
+The fake supplier checks every webhook's `X-Stockyard-Signature` against the shared secret before
+recording it. After a smoke run, `GET /received` lists the two deliveries for the order, both
+verified:
+
+![Terminal capture of GET localhost:8090/received after a smoke run, pretty-printed: a PurchaseOrderPosted and a DeliveryReceived delivery for PO-001000, each with signatureValid true and the payload the procedure wrote.](docs/images/fake-supplier-webhooks.png)
+
 ## What was measured here
 
 Everything in this section was run on a Windows 11 laptop with 16 GB RAM, Docker Desktop on
