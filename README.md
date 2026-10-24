@@ -1,5 +1,7 @@
 # Stockyard
 
+[![ci](https://github.com/Musa-Kal/stockyard/actions/workflows/ci.yml/badge.svg)](https://github.com/Musa-Kal/stockyard/actions/workflows/ci.yml)
+
 Stockyard is an inventory and purchase-order ledger for a mechanical contractor. The office raises
 purchase orders for pipe, fittings and valves, receives deliveries into stock at a job site or the
 warehouse, issues stock to the work, and reconciles the stock on hand projection against the
