@@ -219,6 +219,10 @@ pipeline/dbt/.venv/Scripts/python pipeline/dbt/scripts/make_sample_parquet.py
 pipeline/dbt/.venv/Scripts/dbt build --project-dir pipeline/dbt --profiles-dir pipeline/dbt
 ```
 
+On the sample set that build ends `PASS=65 WARN=0 ERROR=0 SKIP=0`. `dbt docs generate` followed by `dbt docs serve` shows the lineage:
+
+![dbt docs lineage graph: the Parquet sources exports.order_lines and exports.stock_movements feed stg_order_lines and stg_stock_movements, which feed dim_date, dim_item, dim_job_site, dim_supplier, fct_purchase_order_lines and fct_stock_movements; the movement_kinds seed joins fct_stock_movements; fct_daily_stock_balance builds on dim_date and fct_stock_movements; the four singular tests hang off the facts.](images/dbt-lineage.png)
+
 (`bin/` instead of `Scripts/` outside Windows.) Against the bucket, with AWS credentials in the environment:
 
 ```

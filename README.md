@@ -65,6 +65,8 @@ with the same `Idempotency-Key`, receives it, issues stock, waits for the projec
 `GET /stock/reconcile` reports no differences, checks that the fake supplier received two
 correctly signed webhooks, runs an export, and ends with `SMOKE PASSED`.
 
+![Terminal capture of pwsh ./scripts/smoke.ps1 against the compose stack: PO-001000 posted twice with the same Idempotency-Key and returned once, received, 12 elbows issued, the reconcile reporting no differences, two webhooks with valid signatures, two Parquet files written to the LocalStack bucket, then SMOKE PASSED.](docs/images/smoke-output.png)
+
 `bash ./scripts/seed.sh` (or `seed.ps1`) loads sample suppliers, job sites and items.
 `docker compose down -v` removes everything again.
 
@@ -152,12 +154,16 @@ WSL 2, SQL Server 2022 Developer in a Linux container.
   | EF Core's foreign key index on `ItemId` | 1,546 | 0.91 to 1.06 ms |
   | covering index `(ItemId, OccurredAt) INCLUDE (Quantity, JobSiteId)`, the one that ships | 8 | 0.35 to 0.42 ms |
 
-  The ranges cover three runs of the script. The first:
+  The ranges cover three runs of the measurement scripts. The first:
 
   ![Two horizontal bar charts for the three index states. Logical reads on StockMovement for one query: 14,594 with no index on ItemId, 1,546 with the foreign key index, 8 with the covering index. Total elapsed for 200 queries: 7,127 ms, 211 ms and 71 ms.](docs/images/read-path-logical-reads.png)
 
 - `usp_ReconcileStock` over the same ledger: 986 ms when it corrected all 42,000 item and site
   pairs, about 350 ms when there was nothing to correct.
+- The platform files, with no cloud account: `terraform fmt -check -recursive`, `terraform init
+  -backend=false` and `terraform validate` pass; `kubectl kustomize` renders both overlays; the
+  dbt project builds against two generated days of exports with 65 of 65 nodes passing
+  ([docs/platform.md](docs/platform.md) has the lineage graph).
 - k6 against the compose stack, through the `grafana/k6` image:
   - `perf/k6/post-order.js` at 5 orders per second for 20 seconds (create, add a line, post):
     101 orders, 407 of 407 checks, no failed requests, posting p95 10.98 ms and p99 14.34 ms;
