@@ -36,6 +36,12 @@ Physical reads were zero in every measured query, so these are warm-cache number
 Each cell is run 1 / run 2. Single-query CPU and elapsed times under 5 ms are at the resolution of
 `STATISTICS TIME`; the 200-query averages are the better comparison at that end.
 
+![Two horizontal bar charts for the three index states, run 1 above. Logical reads on StockMovement for one query: 14,594 with no index on ItemId, 1,546 with the foreign key index, 8 with the covering index. Total elapsed for 200 queries: 7,127 ms, 211 ms and 71 ms.](images/read-path-logical-reads.png)
+
+A later `pwsh ./scripts/perf/measure.ps1` run, this time with the whole compose stack up after the
+smoke and k6 runs, read the same pages (14,594, 1,546 and 8 logical reads) and timed the
+200-query loops at 7,066 ms, 181 ms and 70 ms.
+
 ## The plans
 
 Actual rows and executions from `STATISTICS PROFILE`, trimmed to the operators that matter.

@@ -133,7 +133,7 @@ WSL 2, SQL Server 2022 Developer in a Linux container.
 
 - `dotnet build Stockyard.sln -warnaserror`: no warnings, with nullable, `latest-recommended`
   analyzers and code style enforced in the build.
-- `dotnet test Stockyard.sln`: 192 tests pass, 118 unit and 74 integration. The integration tests
+- `dotnet test Stockyard.sln`: 193 tests pass, 118 unit and 75 integration. The integration tests
   run against `mcr.microsoft.com/mssql/server:2022-latest` and `localstack/localstack:4.14`. Among
   them:
   - `ExactlyOnceConsumptionTests`: the same message delivered twice, four concurrent deliveries,
@@ -148,12 +148,26 @@ WSL 2, SQL Server 2022 Developer in a Linux container.
 
   | Index state | Logical reads | Average per query |
   | --- | --- | --- |
-  | no index leading with `ItemId` | 14,594 | 35.6 to 36.3 ms |
-  | EF Core's foreign key index on `ItemId` | 1,546 | 1.06 ms |
+  | no index leading with `ItemId` | 14,594 | 35.3 to 36.3 ms |
+  | EF Core's foreign key index on `ItemId` | 1,546 | 0.91 to 1.06 ms |
   | covering index `(ItemId, OccurredAt) INCLUDE (Quantity, JobSiteId)`, the one that ships | 8 | 0.35 to 0.42 ms |
+
+  The ranges cover three runs of the script. The first:
+
+  ![Two horizontal bar charts for the three index states. Logical reads on StockMovement for one query: 14,594 with no index on ItemId, 1,546 with the foreign key index, 8 with the covering index. Total elapsed for 200 queries: 7,127 ms, 211 ms and 71 ms.](docs/images/read-path-logical-reads.png)
 
 - `usp_ReconcileStock` over the same ledger: 986 ms when it corrected all 42,000 item and site
   pairs, about 350 ms when there was nothing to correct.
+- k6 against the compose stack, through the `grafana/k6` image:
+  - `perf/k6/post-order.js` at 5 orders per second for 20 seconds (create, add a line, post):
+    101 orders, 407 of 407 checks, no failed requests, posting p95 10.98 ms and p99 14.34 ms;
+  - `perf/k6/stock-on-hand.js` at 50 reads per second for a minute: 3,009 requests, no failures,
+    no dropped iterations, p95 5.6 ms.
+
+  This is one laptop running every container, the api as a single instance. It shows the scripts
+  and thresholds work end to end; it is not a capacity figure for a deployment.
+
+  ![Terminal capture of the k6 summary for post-order.js at RATE=5 and DURATION=20s: every threshold passed, 407 of 407 checks succeeded, 0 of 306 requests failed, post_order p95 10.98 ms, 101 iterations.](docs/images/k6-post-order.png)
 
 ## Pending a deployment
 
