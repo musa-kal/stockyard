@@ -111,7 +111,7 @@ sequenceDiagram
         Relay->>Sql: mark PublishedAt, commit
     end
     Proj->>Sqs: ReceiveMessage (long poll)
-    Proj->>Sql: BEGIN; INSERT ProcessedMessage; UPDATE StockOnHand; COMMIT
+    Proj->>Sql: BEGIN, INSERT ProcessedMessage, UPDATE StockOnHand, COMMIT
     Proj->>Sqs: DeleteMessage
 ```
 
@@ -124,6 +124,19 @@ deleted ([ADR 0001](decisions/0001-outbox-over-dual-writes.md),
 ## Request flow
 
 A request to post an order shows the layers:
+
+```mermaid
+flowchart LR
+    client([client]) -->|"POST .../post<br/>Idempotency-Key"| endpoint[PurchaseOrderEndpoints<br/>header check]
+    endpoint -->|400 when missing or too long| problem[Problem Details]
+    endpoint --> procs[StockyardProcedures<br/>PostPurchaseOrderAsync]
+    procs -->|EXEC| usp[usp_PostPurchaseOrder<br/>UPDLOCK, HOLDLOCK]
+    usp -->|one transaction| rows[(PurchaseOrder<br/>OutboxMessage<br/>WebhookDelivery)]
+    usp -->|THROW 50000 to 50005| handler[exception handler]
+    handler --> problem
+    procs -->|read back| query[order projection query]
+    query -->|200 order body| client
+```
 
 1. `POST /api/v1/purchase-orders/{id}/post` with `Idempotency-Key`. The endpoint checks the header
    is 1 to 64 characters (400 otherwise).
